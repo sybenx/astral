@@ -110,7 +110,6 @@ export default defineComponent({
       this.$q.dialog({
         title: 'disconnect wallet',
         message: `disconnect "${w.name}"? you can reconnect anytime with your connection string.`,
-        cancel: true,
         persistent: true,
         ok: { label: 'disconnect', color: 'negative', flat: true },
         cancel: { label: 'cancel', flat: true },

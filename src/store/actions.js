@@ -9,7 +9,6 @@ import {
   dbFollows,
   dbRelayList,
   streamMainProfilesFollows,
-  dbQuery,
   dbSave,
   publish,
 } from '../query'

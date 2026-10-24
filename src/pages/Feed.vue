@@ -23,7 +23,7 @@
       :virtual-scroll-slice-ratio-before='2'
       :virtual-scroll-slice-ratio-after='2'
       @virtual-scroll='onVirtualScroll'
-      v-slot='{ item, index }'
+      v-slot='{ item }'
     >
       <div :key='item' class='feed-item'>
         <BasePost

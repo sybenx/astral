@@ -328,7 +328,6 @@ import BaseButtonInfo from 'components/BaseButtonInfo.vue'
 import BaseButtonCopy from 'components/BaseButtonCopy.vue'
 import BaseMarkdown from 'components/BaseMarkdown.vue'
 import BaseRelayRecommend from 'components/BaseRelayRecommend.vue'
-import BaseButtonLightning from 'components/BaseButtonLightning.vue'
 import BaseLightningCard from 'components/BaseLightningCard.vue'
 import DOMPurify from 'dompurify'
 import { fetchReactionsFromCache, fetchZapTotalFromCache } from '../nostr/reactions'
@@ -352,7 +351,6 @@ export default defineComponent({
     BaseButtonCopy,
     BaseMarkdown,
     BaseRelayRecommend,
-    BaseButtonLightning,
     BaseLightningCard,
   },
 

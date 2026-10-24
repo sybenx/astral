@@ -4,11 +4,10 @@ module.exports = {
   // Remove this if you have an higher level ESLint config file (it usually happens into a monorepos)
   root: true,
 
+  // The default parser (espree) understands current JS; Babel isn't needed.
   parserOptions: {
-    parser: '@babel/eslint-parser',
-    ecmaVersion: 2018, // Allows for the parsing of modern ECMAScript features
-    sourceType: 'module', // Allows for the use of imports
-    requireConfigFile: false,
+    ecmaVersion: 'latest',
+    sourceType: 'module',
   },
 
   env: {

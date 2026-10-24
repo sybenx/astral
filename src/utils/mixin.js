@@ -10,7 +10,6 @@ import { bytesToHex } from '@noble/hashes/utils.js'
 import DOMPurify from 'dompurify'
 // import { utils } from 'lnurl-pay'
 import { Buffer } from 'buffer'
-import {Notify} from 'quasar'
 import { utils } from 'lnurl-pay'
 import { fetchZapInvoice } from '../nostr/zap'
 const { formatDate } = date

@@ -59,7 +59,7 @@ export class AuthManager {
       error: null
     }
     this.listeners = []
-    this.bunkerSigner = null    // remote signer: BunkerSigner or Cosign SignerClient
+    this.bunkerSigner = null // remote signer: BunkerSigner or Cosign SignerClient
     this.initializeFromStorage()
   }
 
