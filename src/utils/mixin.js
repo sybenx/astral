@@ -6,6 +6,7 @@ import {nip04, nip19} from 'nostr-tools'
 // import { decode, encode } from 'bech32-buffer'
 // import { bech32 } from 'bech32'
 import { bech32 } from '@scure/base'
+import { bytesToHex } from '@noble/hashes/utils.js'
 import DOMPurify from 'dompurify'
 // import { utils } from 'lnurl-pay'
 import { Buffer } from 'buffer'
@@ -343,11 +344,12 @@ export default {
     isKey(key) {
       if (!key || typeof key !== 'string') return false
       // console.log('isKey:', `"${key}"`, typeof key, /^[0-9a-f]{64}$/.test(key?.toLowerCase()))
-      return /^[0-9a-f]{64}$/.test(key?.toLowerCase())
+      return /^[0-9a-f]{64}$/.test(key.trim().toLowerCase())
     },
 
     isBech32Key(key) {
       if (typeof key !== 'string') return false
+      key = key.trim() // pasted keys often carry a trailing space or newline
       try {
         let { prefix } = bech32.decode(key.toLowerCase())
         if (!['npub', 'nsec', 'note'].includes(prefix)) return false
@@ -362,11 +364,13 @@ export default {
 
     bech32ToHex(key) {
       try {
-        let { type, data } = nip19.decode(key)
+        let { type, data } = nip19.decode(key.trim())
         // nevent/nprofile decode to objects — pull out the hex id/pubkey so
-        // callers always get a hex string (note/npub/nsec already are hex).
+        // callers always get a hex string. note/npub are hex already; nsec
+        // decodes to bytes in nostr-tools v2.
         if (type === 'nevent') return data.id
         if (type === 'nprofile') return data.pubkey
+        if (data instanceof Uint8Array) return bytesToHex(data)
         return data
       } catch (error) {
         // console.log('bech32ToHex error: ', error)

@@ -397,9 +397,18 @@ export default defineComponent({
     },
 
     isKeyValid() {
-      if (this.isKeyKey) return true
-      if (nip06.validateWords(this.key?.toLowerCase())) return true
-      return false
+      return this.isKeyKey || !!this.mnemonic
+    },
+
+    // The pasted seed words, normalized, if they're a valid mnemonic.
+    mnemonic() {
+      const words = this.key?.trim().toLowerCase().split(/\s+/).join(' ')
+      if (!words || !words.includes(' ')) return null
+      try {
+        return nip06.validateWords(words) ? words : null
+      } catch {
+        return null
+      }
     },
 
     isKeyInvalid() {
@@ -413,19 +422,19 @@ export default defineComponent({
       if (this.isBech32Key(this.key)) {
         return this.bech32ToHex(this.key)
       }
-      return this.key?.toLowerCase()
+      return this.key?.trim().toLowerCase()
     },
 
     isBech32Pub() {
       if (this.isBech32Key(this.key)) {
-        return this.key.toLowerCase().startsWith('npub')
+        return this.key.trim().toLowerCase().startsWith('npub')
       }
       return false
     },
 
     isBech32Sec() {
       if (this.isBech32Key(this.key)) {
-        return this.key.toLowerCase().startsWith('nsec')
+        return this.key.trim().toLowerCase().startsWith('nsec')
       }
       return false
     },
@@ -489,15 +498,17 @@ export default defineComponent({
       let key = this.hexKey
 
       var keys = {}
-      // eslint-disable-next-line no-undef
-      // if (validateWords(key)) {
-      //   keys.mnemonic = key
-      // } else if (this.isKey(key)) {
-      if (this.isKey(key)) {
+      // Seed words always mean a private key. (Without this branch keys stayed
+      // empty and setKeys made a brand-new account.)
+      if (this.mnemonic) {
+        keys.mnemonic = this.mnemonic
+      } else if (this.isKey(key)) {
         if (this.watchOnly) keys.pub = key
         else keys.priv = key
       } else {
+        // Empty keys would make setKeys generate a new account, so stop here.
         console.warn('Proceed called with invalid key', key)
+        return
       }
 
       this.$store.commit('setDefaultRelays', this.selectedRelays)
