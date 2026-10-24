@@ -108,7 +108,11 @@ export default defineConfig((ctx) => {
     devServer: {
       // https: true,
       open: false, // opens browser window automatically
-      port: 8080
+      port: 8080,
+      // /api/* (link previews) runs on the deployed Worker; worker/index.js
+      proxy: {
+        '/api': { target: 'https://astral.syb.lol', changeOrigin: true }
+      }
     },
 
     // https://v2.quasar.dev/quasar-cli-vite/quasar-config-js#framework

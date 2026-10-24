@@ -1,11 +1,16 @@
-// Cloudflare Worker serving the built SPA at https://astral.syb.lol.
+// Cloudflare Worker serving https://astral.syb.lol: the built PWA as static
+// assets, plus a small script for /api/* (link previews, worker/index.js).
 // Deploy: npm run deploy (builds the PWA into dist/pwa first)
 {
   "name": "astral-syb-lol",
+  "main": "worker/index.js",
   "compatibility_date": "2026-09-21",
   "assets": {
     "directory": "dist/pwa",
-    "not_found_handling": "single-page-application"
+    "binding": "ASSETS",
+    "not_found_handling": "single-page-application",
+    // everything else is served from assets without running the script
+    "run_worker_first": ["/api/*"]
   },
   "routes": [
     { "pattern": "astral.syb.lol", "custom_domain": true }

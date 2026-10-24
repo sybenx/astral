@@ -19,45 +19,20 @@
 <script>
 import DOMPurify from 'dompurify'
 
-// microlink's free tier allows 25 requests a day per IP and answers 429 past
-// that. Share one cache and one backoff across every preview, and keep the
-// backoff across reloads, so a busy feed doesn't keep hitting the limit.
-const BACKOFF_KEY = 'astral.linkPreviewBackoff'
-const MIN_BACKOFF = 60 * 1000
-const MAX_BACKOFF = 6 * 60 * 60 * 1000
+// Cards come from our own Worker (worker/index.js, cached at the edge). One
+// shared in-memory cache, so a post scrolled past twice asks once.
 const cards = new Map() // url → Promise<card | null>
-let queue = Promise.resolve()
-let backoff = { until: 0, wait: 0 }
-try { backoff = JSON.parse(localStorage.getItem(BACKOFF_KEY)) || backoff } catch { /* storage blocked */ }
-
-// Wait until microlink's reset time when it sends one, else back off exponentially.
-function pauseUntilReset(res) {
-  const reset = Number(res.headers.get('x-rate-limit-reset')) * 1000
-  const wait = Math.min(MAX_BACKOFF, Math.max(MIN_BACKOFF, backoff.wait * 2))
-  backoff = { until: reset > Date.now() ? reset : Date.now() + wait, wait }
-  try { localStorage.setItem(BACKOFF_KEY, JSON.stringify(backoff)) } catch { /* storage blocked */ }
-}
+try { localStorage.removeItem('astral.linkPreviewBackoff') } catch { /* left from the microlink days */ }
 
 async function fetchCard(url) {
-  if (Date.now() < backoff.until) return null
-  const res = await fetch(`https://api.microlink.io/?url=${encodeURIComponent(url)}`)
-  if (res.status === 429) {
-    pauseUntilReset(res)
-    cards.delete(url) // try this one again once the backoff ends
-    return null
-  }
-  if (!res.ok) return null
-  if (res.headers.get('x-rate-limit-remaining') === '0') pauseUntilReset(res)
-  else if (backoff.wait) {
-    backoff = { until: 0, wait: 0 }
-    try { localStorage.removeItem(BACKOFF_KEY) } catch { /* storage blocked */ }
-  }
-  const { status, data } = await res.json()
-  if (status !== 'success' || !data) return null
+  const res = await fetch(`/api/og?url=${encodeURIComponent(url)}`)
+  if (!res.ok || !(res.headers.get('content-type') || '').includes('json')) return null
+  const data = await res.json()
+  if (!data.title && !data.description && !data.image) return null
   return {
     title: data.title ? DOMPurify.sanitize(data.title) : null,
     description: data.description ? DOMPurify.sanitize(data.description) : null,
-    image: data.image?.url || null,
+    image: data.image || null,
   }
 }
 
@@ -78,13 +53,7 @@ export default {
   },
 
   async mounted() {
-    if (Date.now() < backoff.until) return
-    if (!cards.has(this.url)) {
-      // One request at a time, so a 429 stops the rest before they're sent.
-      const card = queue.then(() => fetchCard(this.url)).catch(() => null)
-      queue = card
-      cards.set(this.url, card)
-    }
+    if (!cards.has(this.url)) cards.set(this.url, fetchCard(this.url).catch(() => null))
     this.card = await cards.get(this.url)
   }
 }

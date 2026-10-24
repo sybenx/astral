@@ -173,6 +173,15 @@ inside a nested scroller. iOS ignores `user-scalable=no`, so zoom always works.
   stale-chunk reload once. The Claude browser pane doesn't fire visibilitychange on tab switches, so
   "hidden" was simulated.
 
+## Link previews (since 2026-10-24)
+- `worker/index.js` on the same Cloudflare Worker (`astral-syb-lol`), at `GET /api/og?url=`. It returns
+  `{title, description, image, siteName}` from the page's OG/Twitter meta (HTMLRewriter, first 512 KB,
+  5 s timeout), cached at the edge (24 h for a card, 1 h for a miss). It only runs for `/api/*`
+  (`run_worker_first`); everything else is served as static assets.
+- It refuses non-http(s) URLs, credentials, IP literals and local names, and anything that isn't a
+  same-origin request (Sec-Fetch-Site, Referer fallback).
+- `quasar dev` proxies `/api` to the deployed site. microlink.io is gone.
+
 ## Gotchas
 - `$primary` is **white** (#ffffff) → any FILLED `q-btn color="primary"` is
   white-on-white. Use `text-color="dark"` or `outline`.

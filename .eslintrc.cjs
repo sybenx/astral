@@ -55,6 +55,15 @@ module.exports = {
     chrome: 'readonly',
   },
 
+  overrides: [
+    {
+      // Cloudflare Worker (worker/index.js)
+      files: ['worker/**/*.js'],
+      env: { browser: false, serviceworker: true, es2022: true },
+      globals: { HTMLRewriter: 'readonly', AbortSignal: 'readonly' },
+    },
+  ],
+
   // add your custom rules here
   rules: {
     // 'prefer-promise-reject-errors': 'off',
