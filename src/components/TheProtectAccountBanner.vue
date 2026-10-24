@@ -11,9 +11,8 @@
       <q-card class='protect-dialog'>
         <q-card-section class='flex column' style='gap: .6rem;'>
           <span class='text-h6'>protect your account</span>
-          <!-- Placeholder: moving the key to a phone (QRST Signer or Cosign) goes here. -->
-          <p>Soon you’ll be able to move your account to your phone with Cosign or QRST Signer, so it’s safe even if this browser is lost.</p>
-          <p>Until then, save a backup: the private key in settings is your account. Keep it somewhere safe, like a password manager, and never share it.</p>
+          <!-- Moving the account to a phone with Cosign goes here once Cosign can import an existing key. -->
+          <p>Save a backup: the private key in settings is your account. Keep it somewhere safe, like a password manager, and never share it.</p>
         </q-card-section>
         <q-card-actions align='right'>
           <q-btn flat no-caps label='close' v-close-popup/>
