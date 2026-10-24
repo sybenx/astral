@@ -25,13 +25,15 @@
       @virtual-scroll='onVirtualScroll'
       v-slot='{ item }'
     >
+      <!-- A reply shows under the post it answers, as in the original astral.
+           BasePostThread draws the divider. -->
       <div :key='item' class='feed-item'>
-        <BasePost
-          :event='getEvent(item)'
-          position='standalone'
-          @click.stop='toEvent(item)'
+        <BasePostThread
+          v-if='getEvent(item)'
+          :events='[getEvent(item)]'
+          fetch-root-reply
+          :lookup='getEvent'
         />
-        <div class='bottom-border'/>
       </div>
     </q-virtual-scroll>
 
@@ -49,7 +51,6 @@ import { defineComponent, markRaw } from 'vue'
 import helpersMixin from '../utils/mixin'
 import { isValidEvent } from '../utils/event'
 import { createFeed } from '../nostr/feedEngine'
-import BasePost from 'components/BasePost.vue'
 import BaseButtonLoadMore from 'components/BaseButtonLoadMore.vue'
 import { createMetaMixin } from 'quasar'
 
@@ -67,7 +68,6 @@ export default defineComponent({
   mixins: [helpersMixin, createMetaMixin(metaData)],
 
   components: {
-    BasePost,
     BaseButtonLoadMore,
   },
 

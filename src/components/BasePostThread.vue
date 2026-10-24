@@ -1,6 +1,6 @@
 <template>
   <q-list ref='thread' class='no-padding'>
-    <div v-if='fetchRootReply && ($store.state.eventsCache[reply] || $store.state.eventsCache[root]) && rootReplyThread.length'>
+    <div v-if='fetchRootReply && rootReplyThread.length'>
       <BasePostThread :events="rootReplyThread" is-ancestors/>
     </div>
     <div
@@ -28,6 +28,7 @@
 
 <script>
 import helpersMixin from '../utils/mixin'
+import { wantEvents } from '../nostr/threadContext'
 import BaseButtonShowMore from 'components/BaseButtonShowMore'
 
 export default {
@@ -39,6 +40,8 @@ export default {
     isAncestors: {type: Boolean, default: false},
     replyDepth: {type: Number, default: 0},
     fetchRootReply: {type: Boolean, default: false},
+    // optional (id) => event for events the caller already holds (the feed engine)
+    lookup: {type: Function, default: null},
   },
   components: {
     BaseButtonShowMore,
@@ -57,12 +60,16 @@ export default {
     reply() {
       return (this.root && this.events[0]?.interpolated?.replyEvents?.length > 1) ? this.events[0].interpolated.replyEvents[1] : null
     },
+    // The post this one answers (and the thread's root above it, when that's
+    // a different post). A direct reply to a root has only the root tag, so
+    // the root is its parent.
     rootReplyThread() {
+      const cache = this.$store.state.eventsCache
+      const parent = this.reply || this.root
+      if (!parent || !cache[parent]) return []
       let thread = []
-      if (this.reply && this.$store.state.eventsCache[this.reply]) {
-        if (this.root && this.$store.state.eventsCache[this.root]) thread.push(this.$store.state.eventsCache[this.root])
-        thread.push(this.$store.state.eventsCache[this.reply])
-      }
+      if (this.reply && this.root && cache[this.root]) thread.push(cache[this.root])
+      thread.push(cache[parent])
       return thread
     },
 
@@ -90,10 +97,7 @@ export default {
   },
 
   mounted() {
-    if (this.fetchRootReply) {
-      if (this.root) this.$store.dispatch('useEvent', { id: this.root })
-      if (this.reply) this.$store.dispatch('useEvent', { id: this.reply })
-    }
+    if (this.fetchRootReply) wantEvents(this.$store, [this.root, this.reply], this.lookup)
   },
 
   methods: {
