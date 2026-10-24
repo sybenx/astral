@@ -7,7 +7,7 @@
 import ndk, { connect } from '../ndk'
 import { NDKEvent, NDKPrivateKeySigner, NDKRelay, NDKRelaySet } from '@nostr-dev-kit/ndk'
 import { nip04, nip19, getPublicKey as nostrGetPublicKey } from 'nostr-tools'
-import { hexToBytes } from '@noble/hashes/utils'
+import { hexToBytes } from '@noble/hashes/utils.js'
 
 let nwcRelay = null
 let nwcSecret = null

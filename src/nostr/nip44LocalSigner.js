@@ -15,7 +15,7 @@
 import { NDKPrivateKeySigner } from '@nostr-dev-kit/ndk'
 import * as nip44 from 'nostr-tools/nip44'
 import * as nip04 from 'nostr-tools/nip04'
-import { hexToBytes } from '@noble/hashes/utils'
+import { hexToBytes } from '@noble/hashes/utils.js'
 
 export class Nip44LocalSigner extends NDKPrivateKeySigner {
   async encrypt(recipient, value) {

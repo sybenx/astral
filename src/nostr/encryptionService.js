@@ -9,7 +9,7 @@
 // Distilled from zapcooking's encryptionService.ts (we only need self/NIP-44).
 
 import * as nip44 from 'nostr-tools/nip44'
-import { hexToBytes } from '@noble/hashes/utils'
+import { hexToBytes } from '@noble/hashes/utils.js'
 import ndk from './ndk'
 import { nip44EncryptViaNip46, nip44DecryptViaNip46 } from './nip46Rpc'
 

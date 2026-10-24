@@ -1,5 +1,9 @@
-// Signer abstraction for astral — NIP-07, NIP-46 (bunker:// + nostrconnect://),
-// and local private key, behind one interface, on top of NDK.
+// Signer abstraction for astral, behind one interface, on top of NDK:
+//   - NIP-07 browser extension (window.nostr)
+//   - "Sign in" with a phone: Cosign's QRST sign-in, or any NIP-46 signer app
+//     through the nostrconnect:// fallback in the same code (see signIn.js)
+//   - NIP-46 bunker:// pasted by hand
+//   - local private key
 //
 // NIP-46 uses nostr-tools BunkerSigner (not NDKNip46Signer). Root cause of the
 // old hang: NDKNip46Signer.sign() relied on startListening() being called, but
@@ -8,28 +12,33 @@
 // setupSubscription() immediately, so the sign_event response listener is always
 // active. See nip46Signer.js for the NDK adapter.
 
-import {
-  NDKNip07Signer,
-  NDKPrivateKeySigner,
-  NDKSubscriptionCacheUsage
-} from '@nostr-dev-kit/ndk'
-import { nip19, getPublicKey, generateSecretKey } from 'nostr-tools'
+import { NDKNip07Signer, NDKPrivateKeySigner } from '@nostr-dev-kit/ndk'
+import { nip19, generateSecretKey } from 'nostr-tools'
 import { BunkerSigner } from 'nostr-tools/nip46'
-import * as nip44 from 'nostr-tools/nip44'
-import * as nip04 from 'nostr-tools/nip04'
-import { hexToBytes } from '@noble/hashes/utils'
+import { hexToBytes } from '@noble/hashes/utils.js'
 import { Nip46NdkSigner } from './nip46Signer'
+import {
+  startSignIn as startPhoneSignIn,
+  restoreSignIn as restorePhoneSignIn,
+  settleRelays,
+  signOut,
+  forgetSignIn,
+  isCosign
+} from './signIn'
 
 const browser = typeof window !== 'undefined'
-const APP_NAME = 'astral'
-const APP_URL = browser ? window.location.origin : ''
 
 // localStorage keys
 const LS_PUBKEY = 'astral_loggedInPublicKey'
 const LS_PRIVKEY = 'astral_privateKey'
 const LS_METHOD = 'astral_authMethod'
 const LS_NIP46 = 'astral_nip46'
+// Left behind by the old nostrconnect pairing; cleared on sign-out.
 const LS_NIP46_PENDING = 'astral_nip46_pending'
+
+// authMethod values. 'cosign' and 'nostrconnect' come from the Sign in code;
+// 'nip46' is a pasted bunker:// string.
+const PHONE_METHODS = ['cosign', 'nostrconnect']
 
 function bytesToHex(bytes) {
   return Array.from(bytes)
@@ -49,8 +58,7 @@ export class AuthManager {
       error: null
     }
     this.listeners = []
-    this.bunkerSigner = null    // nostr-tools BunkerSigner (NIP-46 only)
-    this.nip46ResponseSub = null
+    this.bunkerSigner = null    // remote signer: BunkerSigner or Cosign SignerClient
     this.initializeFromStorage()
   }
 
@@ -68,6 +76,26 @@ export class AuthManager {
   updateState(updates) {
     this.authState = { ...this.authState, ...updates }
     this.listeners.forEach((listener) => listener(this.authState))
+  }
+
+  // Make `signer` (anything with signEvent / nip04* / nip44*) the active NDK signer.
+  _bindRemoteSigner(signer, userPubkey) {
+    this.bunkerSigner = signer
+    const user = this.ndk.getUser({ pubkey: userPubkey })
+    this.ndk.signer = new Nip46NdkSigner(signer, userPubkey)
+    this.ndk.activeUser = user
+    return user
+  }
+
+  _signedIn(user, publicKey, authMethod) {
+    this.updateState({
+      isAuthenticated: true,
+      user,
+      publicKey,
+      authMethod,
+      isLoading: false,
+      error: null
+    })
   }
 
   // ── NIP-46 helpers ───────────────────────────────────────────────────────
@@ -89,11 +117,22 @@ export class AuthManager {
 
     if (!/^[0-9a-f]{64}$/.test(userPubkey)) throw new Error(`invalid pubkey from bunker: ${userPubkey}`)
 
-    this.bunkerSigner = bs
-    const user = this.ndk.getUser({ pubkey: userPubkey })
-    this.ndk.signer = new Nip46NdkSigner(bs, userPubkey)
-    this.ndk.activeUser = user
-    return { userPubkey, user }
+    const user = this._bindRemoteSigner(bs, userPubkey)
+    return { userPubkey, user, bs }
+  }
+
+  // Ask a bunker for its preferred relays (switch_relays) and save them, so the
+  // next reload connects where the signer actually listens.
+  async _settleBunkerRelays(bs, nip46Info) {
+    try {
+      const moved = await Promise.race([bs.switchRelays(), new Promise((resolve) => setTimeout(() => resolve(false), 5000))])
+      if (moved && JSON.stringify(bs.bp.relays) !== JSON.stringify(nip46Info.relays)) {
+        nip46Info.relays = bs.bp.relays
+        localStorage.setItem(LS_NIP46, JSON.stringify(nip46Info))
+      }
+    } catch (e) {
+      console.warn('[NIP-46] switch_relays:', e?.message || e)
+    }
   }
 
   async initializeFromStorage() {
@@ -103,6 +142,12 @@ export class AuthManager {
       const storedPrivateKey = localStorage.getItem(LS_PRIVKEY)
       const storedAuthMethod = localStorage.getItem(LS_METHOD)
       const storedNip46 = localStorage.getItem(LS_NIP46)
+
+      if (PHONE_METHODS.includes(storedAuthMethod) && storedPublicKey) {
+        if (this.restoreSignIn(storedPublicKey, storedAuthMethod)) return
+        this.clearStorage()
+        return
+      }
 
       if (storedAuthMethod === 'nip46' && storedNip46 && storedPublicKey) {
         try {
@@ -122,12 +167,7 @@ export class AuthManager {
           this.clearStorage()
         }
       } else if (storedPublicKey && storedAuthMethod === 'nip07') {
-        try {
-          await this.authenticateWithNIP07()
-        } catch (error) {
-          console.error('Failed to restore NIP-07 authentication:', error)
-          this.clearStorage()
-        }
+        this.restoreNIP07(storedPublicKey)
       }
     } catch (error) {
       console.error('Error during authentication initialization:', error)
@@ -135,6 +175,11 @@ export class AuthManager {
     }
   }
 
+  // ── NIP-07 ───────────────────────────────────────────────────────────────
+
+  // Call only from a user's tap: some extensions (Cosign's among them) show
+  // their own prompt on the first request from a site, so this can take as
+  // long as the user takes. "Not now" rejects with an Error.
   async authenticateWithNIP07() {
     this.updateState({ isLoading: true, error: null })
     try {
@@ -150,22 +195,27 @@ export class AuthManager {
       const publicKey = user.pubkey
       this.ndk.activeUser = user
 
-      this.updateState({
-        isAuthenticated: true,
-        user,
-        publicKey,
-        authMethod: 'nip07',
-        isLoading: false,
-        error: null
-      })
+      this._signedIn(user, publicKey, 'nip07')
       localStorage.setItem(LS_PUBKEY, publicKey)
       localStorage.setItem(LS_METHOD, 'nip07')
       return publicKey
     } catch (error) {
+      this.ndk.signer = undefined
       this.failAuth(error, 'Authentication failed')
       throw error
     }
   }
+
+  // A returning visit: the extension already allowed this site, so use the
+  // stored public key instead of asking the extension again on page load.
+  restoreNIP07(publicKey) {
+    this.ndk.signer = new NDKNip07Signer()
+    const user = this.ndk.getUser({ pubkey: publicKey })
+    this.ndk.activeUser = user
+    this._signedIn(user, publicKey, 'nip07')
+  }
+
+  // ── local private key ────────────────────────────────────────────────────
 
   async authenticateWithPrivateKey(privateKey) {
     this.updateState({ isLoading: true, error: null })
@@ -188,14 +238,7 @@ export class AuthManager {
       const publicKey = user.pubkey
       this.ndk.activeUser = user
 
-      this.updateState({
-        isAuthenticated: true,
-        user,
-        publicKey,
-        authMethod: 'privateKey',
-        isLoading: false,
-        error: null
-      })
+      this._signedIn(user, publicKey, 'privateKey')
       localStorage.setItem(LS_PUBKEY, publicKey)
       localStorage.setItem(LS_PRIVKEY, pk)
       localStorage.setItem(LS_METHOD, 'privateKey')
@@ -205,6 +248,57 @@ export class AuthManager {
       throw error
     }
   }
+
+  // ── Sign in with a phone (Cosign, or nostrconnect fallback) ───────────────
+
+  // Show a code and wait for the phone. `ui` gets code(uri), confirm(text, yes, no)
+  // and status(text) calls. Returns { done, cancel }; done resolves to the pubkey.
+  startSignIn(ui) {
+    this.updateState({ error: null })
+    const p = startPhoneSignIn(ui)
+    const done = p.done.then(async (signer) => {
+      const userPubkey = await signer.getPublicKey()
+      if (!/^[0-9a-f]{64}$/.test(userPubkey)) throw new Error(`invalid pubkey from signer: ${userPubkey}`)
+      const method = isCosign(signer) ? 'cosign' : 'nostrconnect'
+      const user = this._bindRemoteSigner(signer, userPubkey)
+      localStorage.setItem(LS_PUBKEY, userPubkey)
+      localStorage.setItem(LS_METHOD, method)
+      this._signedIn(user, userPubkey, method)
+      if (method === 'nostrconnect') settleRelays(signer)
+      return userPubkey
+    })
+    return { done, cancel: p.cancel }
+  }
+
+  // Pick up a phone sign-in from a previous visit. Returns false if nothing to restore.
+  restoreSignIn(publicKey, method) {
+    const signer = restorePhoneSignIn()
+    if (!signer) return false
+    const user = this._bindRemoteSigner(signer, publicKey)
+    this._signedIn(user, publicKey, method)
+    if (method === 'nostrconnect') settleRelays(signer)
+    return true
+  }
+
+  // The phone removed this site (a `revoked:` error from Cosign): sign out
+  // locally, without asking the servers to revoke what is already gone.
+  handleRevoked() {
+    if (this.bunkerSigner?.close) this.bunkerSigner.close()
+    this.bunkerSigner = null
+    forgetSignIn()
+    this.clearStorage()
+    this.ndk.signer = undefined
+    this.updateState({
+      isAuthenticated: false,
+      user: null,
+      publicKey: '',
+      authMethod: null,
+      isLoading: false,
+      error: 'You were signed out on your phone.'
+    })
+  }
+
+  // ── NIP-46 bunker:// pasted by hand ──────────────────────────────────────
 
   // bunker:// only (nostrconnect:// is client-generated, not user input)
   parseNIP46ConnectionString(connectionString) {
@@ -257,24 +351,18 @@ export class AuthManager {
       }
       await this.ndk.connect()
 
-      const { userPubkey, user } = await this._createAndBindBunkerSigner(
+      const { userPubkey, user, bs } = await this._createAndBindBunkerSigner(
         localPrivateKeyBytes, signerPubkey, relays, secret
       )
 
-      this.updateState({
-        isAuthenticated: true,
-        user,
-        publicKey: userPubkey,
-        authMethod: 'nip46',
-        isLoading: false,
-        error: null
-      })
+      this._signedIn(user, userPubkey, 'nip46')
 
       const redacted = secret ? connectionString.replace(secret, '***REDACTED***') : connectionString
       const nip46Info = { signerPubkey, userPubkey, relays, connectionString: redacted, localPrivateKey, secret }
       localStorage.setItem(LS_PUBKEY, userPubkey)
       localStorage.setItem(LS_METHOD, 'nip46')
       localStorage.setItem(LS_NIP46, JSON.stringify(nip46Info))
+      this._settleBunkerRelays(bs, nip46Info)
       return userPubkey
     } catch (error) {
       this.bunkerSigner = null
@@ -307,6 +395,7 @@ export class AuthManager {
           localStorage.setItem(LS_NIP46, JSON.stringify(nip46Info))
           localStorage.setItem(LS_PUBKEY, userPubkey)
         }
+        this._settleBunkerRelays(result.bs, nip46Info)
       } catch (e) {
         console.warn('[NIP-46] Reconnect failed, using stored pubkey:', e)
         // Restore a minimal signer so signing attempts give a clear error
@@ -318,14 +407,7 @@ export class AuthManager {
       const user = this.ndk.getUser({ pubkey: userPubkey })
       if (!this.ndk.activeUser) this.ndk.activeUser = user
 
-      this.updateState({
-        isAuthenticated: true,
-        user,
-        publicKey: userPubkey,
-        authMethod: 'nip46',
-        isLoading: false,
-        error: null
-      })
+      this._signedIn(user, userPubkey, 'nip46')
       return userPubkey
     } catch (error) {
       this.bunkerSigner = null
@@ -341,215 +423,7 @@ export class AuthManager {
     }
   }
 
-  // ── universal nostrconnect:// pairing (Amber / mobile QR flow) ────────────
-
-  generateSecret() {
-    const array = new Uint8Array(16)
-    crypto.getRandomValues(array)
-    return bytesToHex(array)
-  }
-
-  async startNip46PairingUniversal() {
-    if (!browser) throw new Error('Browser environment required')
-    const localPrivateKeyBytes = generateSecretKey()
-    const localPrivateKey = bytesToHex(localPrivateKeyBytes)
-    const localPubkey = getPublicKey(localPrivateKeyBytes)
-    const secret = this.generateSecret()
-
-    let relays = []
-    if (this.ndk.pool && this.ndk.pool.relays && this.ndk.pool.relays.size > 0) {
-      relays = Array.from(this.ndk.pool.relays.keys())
-    }
-    if (relays.length === 0) relays = ['wss://relay.damus.io', 'wss://nos.lol']
-
-    localStorage.setItem(
-      LS_NIP46_PENDING,
-      JSON.stringify({ localPrivateKey, localPubkey, relays, secret, startedAt: Date.now() })
-    )
-
-    const params = new URLSearchParams()
-    relays.forEach((r) => params.append('relay', r))
-    params.set('secret', secret)
-    params.set('name', APP_NAME)
-    params.set('url', APP_URL)
-    const uri = `nostrconnect://${localPubkey}?${params.toString()}`
-
-    for (const relay of relays) {
-      try { this.ndk.addExplicitRelay(relay) } catch (e) {
-        console.warn('[NIP-46] Failed to add relay:', relay, e)
-      }
-    }
-    await this.ndk.connect()
-    this.startNip46ResponseListener(localPubkey)
-    return { uri, relays }
-  }
-
-  async decryptNip44(ciphertext, senderPubkey, recipientPrivateKey) {
-    const privateKeyBytes = hexToBytes(recipientPrivateKey)
-    try {
-      const conversationKey = nip44.v2.utils.getConversationKey(privateKeyBytes, senderPubkey)
-      return nip44.v2.decrypt(ciphertext, conversationKey)
-    } catch (nip44Error) {
-      try {
-        return await nip04.decrypt(recipientPrivateKey, senderPubkey, ciphertext)
-      } catch {
-        throw new Error('Failed to decrypt response')
-      }
-    }
-  }
-
-  startNip46ResponseListener(localPubkey) {
-    if (this.nip46ResponseSub) {
-      this.nip46ResponseSub.stop()
-      this.nip46ResponseSub = null
-    }
-    const filter = {
-      kinds: [24133],
-      '#p': [localPubkey],
-      since: Math.floor((Date.now() - 5 * 60 * 1000) / 1000)
-    }
-    const sub = this.ndk.subscribe(filter, {
-      closeOnEose: false,
-      groupable: false,
-      cacheUsage: NDKSubscriptionCacheUsage.ONLY_RELAY
-    })
-    this.nip46ResponseSub = sub
-    let isProcessing = false
-
-    sub.on('event', async (event) => {
-      if (isProcessing) return
-      const signerPubkey = event.pubkey
-      const pendingInfo = this.getPendingNip46Info()
-      if (!pendingInfo) return
-
-      let response
-      try {
-        const decrypted = await this.decryptNip44(event.content, signerPubkey, pendingInfo.localPrivateKey)
-        response = JSON.parse(decrypted)
-      } catch (e) {
-        return
-      }
-      if (response.error) return
-      if (response.method && response.method !== 'connect') return
-
-      const result = response.result
-      const isAckOnly = result === 'ack'
-      const isSecretMatch = typeof result === 'string' && result === pendingInfo.secret
-      if (!isAckOnly && !isSecretMatch) return
-
-      try {
-        isProcessing = true
-        await this.completeNip46PairingWithSignerPubkey(signerPubkey)
-        sub.stop()
-        if (this.nip46ResponseSub === sub) this.nip46ResponseSub = null
-      } catch (e) {
-        const msg = e instanceof Error ? e.message : String(e)
-        if (msg.includes('No pending NIP-46 pairing found')) {
-          sub.stop()
-          if (this.nip46ResponseSub === sub) this.nip46ResponseSub = null
-        } else {
-          console.error('[NIP-46] Failed to complete pairing:', e)
-        }
-      } finally {
-        isProcessing = false
-      }
-    })
-    sub.on('close', () => {
-      if (this.nip46ResponseSub === sub) this.nip46ResponseSub = null
-    })
-  }
-
-  hasPendingNip46Pairing() {
-    if (!browser) return false
-    const pending = localStorage.getItem(LS_NIP46_PENDING)
-    if (!pending) return false
-    try {
-      const info = JSON.parse(pending)
-      if (Date.now() - info.startedAt > 5 * 60 * 1000) {
-        localStorage.removeItem(LS_NIP46_PENDING)
-        return false
-      }
-      return true
-    } catch {
-      return false
-    }
-  }
-
-  getPendingNip46Info() {
-    if (!browser) return null
-    const pending = localStorage.getItem(LS_NIP46_PENDING)
-    if (!pending) return null
-    try {
-      return JSON.parse(pending)
-    } catch {
-      return null
-    }
-  }
-
-  async completeNip46PairingWithSignerPubkey(signerPubkey) {
-    const currentAuth = this.getState()
-    if (currentAuth.isAuthenticated && currentAuth.authMethod === 'nip46') {
-      const storedNip46 = localStorage.getItem(LS_NIP46)
-      if (storedNip46) {
-        try {
-          if (JSON.parse(storedNip46).signerPubkey === signerPubkey) return
-        } catch (e) {
-          /* invalid stored data, continue */
-        }
-      }
-    }
-    const pendingInfo = this.getPendingNip46Info()
-    if (!pendingInfo) throw new Error('No pending NIP-46 pairing found')
-
-    this.updateState({ isLoading: true, error: null })
-    try {
-      const localPrivateKeyBytes = hexToBytes(pendingInfo.localPrivateKey)
-
-      for (const relay of pendingInfo.relays) {
-        try { this.ndk.addExplicitRelay(relay) } catch (e) {
-          console.warn('[NIP-46] Failed to add relay:', relay, e)
-        }
-      }
-      await this.ndk.connect()
-
-      const { userPubkey, user } = await this._createAndBindBunkerSigner(
-        localPrivateKeyBytes, signerPubkey, pendingInfo.relays, pendingInfo.secret
-      )
-
-      const nip46Info = {
-        signerPubkey,
-        userPubkey,
-        relays: pendingInfo.relays,
-        connectionString: `bunker://${signerPubkey}?${pendingInfo.relays
-          .map((r) => `relay=${encodeURIComponent(r)}`)
-          .join('&')}`,
-        localPrivateKey: pendingInfo.localPrivateKey
-      }
-      localStorage.setItem(LS_PUBKEY, userPubkey)
-      localStorage.setItem(LS_METHOD, 'nip46')
-      localStorage.setItem(LS_NIP46, JSON.stringify(nip46Info))
-      localStorage.removeItem(LS_NIP46_PENDING)
-
-      this.updateState({
-        isAuthenticated: true,
-        user,
-        publicKey: userPubkey,
-        authMethod: 'nip46',
-        isLoading: false,
-        error: null
-      })
-      return userPubkey
-    } catch (error) {
-      this.bunkerSigner = null
-      this.ndk.signer = undefined
-      this.failAuth(error, 'Failed to complete pairing')
-      throw error
-    }
-  }
-
-  timeout(ms, message) {
-    return new Promise((_, reject) => setTimeout(() => reject(new Error(message)), ms))
-  }
+  // ── shared ───────────────────────────────────────────────────────────────
 
   failAuth(error, fallback) {
     console.error('Authentication failed:', error)
@@ -564,14 +438,13 @@ export class AuthManager {
   }
 
   async logout() {
-    if (this.bunkerSigner) {
+    if (PHONE_METHODS.includes(this.authState.authMethod)) {
+      // Cosign: the site leaves the phone's list. Capped so sign-out never hangs.
+      await Promise.race([signOut(this.bunkerSigner), new Promise((resolve) => setTimeout(resolve, 15000))])
+    } else if (this.bunkerSigner) {
       this.bunkerSigner.close().catch(() => {})
-      this.bunkerSigner = null
     }
-    if (this.nip46ResponseSub) {
-      this.nip46ResponseSub.stop()
-      this.nip46ResponseSub = null
-    }
+    this.bunkerSigner = null
     this.updateState({
       isAuthenticated: false,
       user: null,
@@ -587,15 +460,12 @@ export class AuthManager {
 
   clearStorage() {
     if (!browser) return
-    if (this.nip46ResponseSub) {
-      this.nip46ResponseSub.stop()
-      this.nip46ResponseSub = null
-    }
     localStorage.removeItem(LS_PUBKEY)
     localStorage.removeItem(LS_PRIVKEY)
     localStorage.removeItem(LS_METHOD)
     localStorage.removeItem(LS_NIP46)
     localStorage.removeItem(LS_NIP46_PENDING)
+    forgetSignIn()
   }
 
   isNIP07Available() {

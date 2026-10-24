@@ -14,7 +14,7 @@ import {
   finalizeEvent
 } from 'nostr-tools'
 import * as nip06 from 'nostr-tools/nip06'
-import { bytesToHex, hexToBytes } from '@noble/hashes/utils'
+import { bytesToHex, hexToBytes } from '@noble/hashes/utils.js'
 
 export { getEventHash, nip06 }
 

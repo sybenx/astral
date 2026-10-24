@@ -193,7 +193,10 @@
           <template v-else-if="authMethod === 'nip07'">
             <p>You're signed in with a <strong>browser extension</strong>. Your private key stays in the extension — Astral never sees it. This is the secure setup, so there's nothing to back up here.</p>
           </template>
-          <template v-else-if="authMethod === 'nip46'">
+          <template v-else-if="authMethod === 'cosign'">
+            <p>You're signed in with <strong>your phone</strong> through Cosign. Your key is split between your phone and your servers — Astral never sees it. You can remove Astral from Cosign's list at any time, and logging out here removes it too.</p>
+          </template>
+          <template v-else-if="authMethod === 'nip46' || authMethod === 'nostrconnect'">
             <p>You're signed in with a <strong>remote signer</strong>. Your private key stays in your signer — Astral never sees it. This is the secure setup, so there's nothing to back up here.</p>
           </template>
           <template v-else>
@@ -317,7 +320,7 @@ export default {
       if (live) return live
       try {
         const stored = localStorage.getItem('astral_authMethod')
-        if (stored === 'nip46' || stored === 'nip07') return stored
+        if (['nip46', 'nip07', 'cosign', 'nostrconnect'].includes(stored)) return stored
       } catch (_) { /* storage unavailable */ }
       const signerName = ndk.signer?.constructor?.name || ''
       if (signerName.includes('Nip46')) return 'nip46'
@@ -490,6 +493,8 @@ export default {
           ok: {color: 'accent'}
         })
         .onOk(async () => {
+          // Lets a phone signer drop this site from its list before we forget it.
+          await getAuthManager()?.logout().catch(() => {})
           LocalStorage.clear()
           window.location.reload()
         })
