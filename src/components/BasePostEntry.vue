@@ -371,7 +371,9 @@ const { getPaletteColor } = colors
 import helpersMixin from '../utils/mixin'
 import {getPubKeyTagWithRelay, getEventIdTagWithRelay} from '../utils/helpers'
 import {cleanEvent} from '../utils/event'
-import BaseEmojiPicker from 'components/BaseEmojiPicker.vue'
+import { defineAsyncComponent } from 'vue'
+// emoji-mart and its emoji data (~800 KB) load only when the picker opens
+const BaseEmojiPicker = defineAsyncComponent(() => import('components/BaseEmojiPicker.vue'))
 import BaseLinkForm from 'components/BaseLinkForm.vue'
 import BaseMessage from 'components/BaseMessage.vue'
 import BaseMarkdown from 'components/BaseMarkdown.vue'

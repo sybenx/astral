@@ -8,9 +8,8 @@ import {nip04, nip19} from 'nostr-tools'
 import { bech32 } from '@scure/base'
 import { bytesToHex } from '@noble/hashes/utils.js'
 import DOMPurify from 'dompurify'
-// import { utils } from 'lnurl-pay'
 import { Buffer } from 'buffer'
-import { utils } from 'lnurl-pay'
+import * as utils from './lnurl'
 import { fetchZapInvoice } from '../nostr/zap'
 const { formatDate } = date
 

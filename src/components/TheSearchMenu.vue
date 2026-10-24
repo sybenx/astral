@@ -131,9 +131,10 @@
 </template>
 
 <script>
-import { defineComponent } from 'vue'
+import { defineComponent, defineAsyncComponent } from 'vue'
 import { Notify, debounce } from 'quasar'
-import Draggable from 'vuedraggable'
+// vuedraggable pulls in sortablejs and Vue's template compiler: load it for reorder mode only
+const Draggable = defineAsyncComponent(() => import('vuedraggable'))
 import { nip05 } from 'nostr-tools'
 import helpersMixin from '../utils/mixin'
 import BaseButtonClear from 'components/BaseButtonClear.vue'

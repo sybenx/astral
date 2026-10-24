@@ -68,7 +68,7 @@
 import helpersMixin from '../utils/mixin'
 import BaseQr from 'components/BaseQr'
 import * as bolt11Parser from 'light-bolt11-decoder'
-import { utils } from 'lnurl-pay'
+import * as utils from '../utils/lnurl'
 import { Notify } from 'quasar'
 import { launchPayment } from '../nostr/wallet/bitcoinConnect'
 import { useWalletStore } from 'stores/wallet'

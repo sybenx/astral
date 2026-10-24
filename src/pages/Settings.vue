@@ -236,7 +236,7 @@ import BaseSelectMultiple from 'components/BaseSelectMultiple.vue'
 import BaseInformation from 'components/BaseInformation.vue'
 import ThePreferences from 'components/ThePreferences.vue'
 import { createMetaMixin } from 'quasar'
-import { utils } from 'lnurl-pay'
+import * as utils from '../utils/lnurl'
 import { getAuthManager } from '../nostr/authManager'
 import ndk from '../nostr/ndk'
 

@@ -1,6 +1,6 @@
 import Identicon from 'identicon.js'
 import * as helpersMixin from '../utils/mixin'
-import { utils } from 'lnurl-pay'
+import * as utils from '../utils/lnurl'
 
 export function namedProfiles(state, getters) {
   // Build with push, not spread-in-reduce: `[...result, x]` copies the whole
