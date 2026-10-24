@@ -46,7 +46,7 @@ import BaseButtonShowMore from 'components/BaseButtonShowMore'
 
 const metaData = {
   // sets document title
-  title: 'lunar - thread',
+  title: 'astral - thread',
 
   // meta tags
   meta: {

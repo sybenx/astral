@@ -126,7 +126,7 @@ import { createMetaMixin } from 'quasar'
 
 const metaData = {
   // sets document title
-  title: 'lunar - profile',
+  title: 'astral - profile',
 
   // meta tags
   meta: {

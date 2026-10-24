@@ -15,7 +15,17 @@ module.exports = configure(async function (/* ctx */) {
   // CommonJS config (what @quasar/app-vite v1 expects) can still use it.
   const { nodePolyfills } = await import('vite-plugin-node-polyfills')
 
+  // Public origin used for absolute Open Graph URLs in index.html. Set SITE_URL
+  // at build time; on Vercel it falls back to the production domain.
+  const siteUrl = (
+    process.env.SITE_URL ||
+    (process.env.VERCEL_PROJECT_PRODUCTION_URL ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}` : '')
+  ).replace(/\/$/, '')
+
   return {
+    // Exposed to index.html as <%= siteUrl %>
+    htmlVariables: { siteUrl },
+
     // https://v2.quasar.dev/quasar-cli-vite/prefetch-feature
     // preFetch: true,
 
@@ -45,7 +55,7 @@ module.exports = configure(async function (/* ctx */) {
 
       // Keep quotes on attribute values in index.html. Quasar's default minify
       // sets removeAttributeQuotes:true, producing `<meta property=og:image
-      // content=https://lunar.ninja/social_image.jpg>`. Robust crawlers (FB/
+      // content=https://example.com/social_image.jpg>`. Robust crawlers (FB/
       // Twitter/Discord) parse that fine, but stricter/regex-based OG parsers in
       // some nostr clients (e.g. wisp) expect `content="..."` and silently fail —
       // so they fall back to <title> + domain and never see og:image (no social
@@ -136,8 +146,8 @@ module.exports = configure(async function (/* ctx */) {
       manifestFilename: 'manifest.json',
       useCredentialsForManifestTag: false,
       manifest: {
-        name: 'Lunar',
-        short_name: 'Lunar',
+        name: 'Astral',
+        short_name: 'Astral',
         description: 'decentralized social platform (nostr client)',
         display: 'standalone',
         orientation: 'portrait',
@@ -165,7 +175,7 @@ module.exports = configure(async function (/* ctx */) {
       bundler: 'packager',
       packager: {},
       builder: {
-        appId: 'ninja.lunar'
+        appId: 'ninja.astral'
       }
     }
   }

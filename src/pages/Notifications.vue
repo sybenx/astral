@@ -49,9 +49,9 @@ import BasePost from 'components/BasePost.vue'
 import BaseButtonLoadMore from 'components/BaseButtonLoadMore.vue'
 
 const metaData = {
-  title: 'lunar - notifications',
+  title: 'astral - notifications',
   meta: {
-    description: { name: 'description', content: 'Nostr notifications on lunar' },
+    description: { name: 'description', content: 'Nostr notifications on astral' },
     keywords: { name: 'keywords', content: 'nostr decentralized social media' },
     equiv: { 'http-equiv': 'Content-Type', content: 'text/html; charset=UTF-8' },
   },

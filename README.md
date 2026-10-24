@@ -1,8 +1,10 @@
-# Lunar
+# Astral
 
-[Lunar](https://lunar.ninja) is a web client for interacting with [Nostr](https://github.com/fiatjaf/nostr), a protocol that attempts to make decentralized social media a reality.
+Astral is a web client for interacting with [Nostr](https://github.com/nostr-protocol/nostr), a protocol that attempts to make decentralized social media a reality.
 
-Lunar is a fork and full technical overhaul of [astral](https://github.com/monlovesmango/astral) (astral.ninja), the original Nostr client by [monlovesmango](https://github.com/monlovesmango), which itself began as a fork of [Branle](https://github.com/fiatjaf/branle) by [fiatjaf](https://github.com/fiatjaf). The overhaul modernizes the stack (Vite, NDK, Pinia) and adds NIP-07/NIP-46 signers, NWC + lightning zaps (NIP-57), and more, while keeping astral's original design and aesthetic.
+This is a revival of [astral](https://github.com/monlovesmango/astral) (astral.ninja), the original Nostr client by [monlovesmango](https://github.com/monlovesmango), which itself began as a fork of [Branle](https://github.com/fiatjaf/branle) by [fiatjaf](https://github.com/fiatjaf). It is built on [Lunar](https://github.com/dmnyc/lunar) by [dmnyc](https://github.com/dmnyc), a full technical overhaul of astral that modernized the stack (Vite, NDK, Pinia) and added NIP-07/NIP-46 signers, NWC + lightning zaps (NIP-57), and more, while keeping astral's original design and aesthetic.
+
+Lineage: Branle → astral → Lunar → Astral.
 
 ## Install the dependencies
 ```bash
@@ -44,6 +46,8 @@ quasar build -m pwa
 ```
 
 ### Build the app for production in SPA mode:
+Set `SITE_URL` (e.g. `SITE_URL=https://example.com`) so the social preview tags in `index.html` use absolute URLs. On Vercel it defaults to the production domain.
+
 ```bash
 yarn build:spa
 # or
@@ -56,12 +60,12 @@ quasar build
 
 ### Build the docker image (uses PWA mode):
 ```bash
-docker build -t lunar .
+docker build -t astral .
 ```
 
 ### Run the container:
 ```bash
-docker run -d -p 8080:8000 --name lunar lunar
+docker run -d -p 8080:8000 --name astral astral
 ```
 
 and connect to 'http://localhost:8080/'

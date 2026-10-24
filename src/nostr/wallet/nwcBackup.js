@@ -1,7 +1,7 @@
 // Back up / restore the NWC connection string to Nostr relays via NIP-78
 // (kind 30078 replaceable app-data), NIP-44 encrypted to the user's own key.
 //
-// Signs through Lunar's normal path (signAsynchronously → query.publish) so it
+// Signs through Astral's normal path (signAsynchronously → query.publish) so it
 // works for local-key users too (their key isn't on ndk.signer).
 
 import ndk, { connect, relaySetFrom } from '../ndk'
@@ -11,6 +11,7 @@ import { publish } from '../../query'
 import { encryptSelf, decryptSelf, canBackup } from '../encryptionService'
 
 const KIND = 30078
+// d-tag kept from the Lunar fork so backups made on lunar.ninja still restore
 const D_TAG = 'lunar-nwc-backup'
 
 export { canBackup }
@@ -61,7 +62,7 @@ export async function backupNwcToNostr(store, connectionString) {
     content: ciphertext,
     tags: [
       ['d', D_TAG],
-      ['client', 'lunar'],
+      ['client', 'astral'],
       ['encryption', 'nip44']
     ]
   }

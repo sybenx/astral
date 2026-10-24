@@ -283,7 +283,7 @@ export async function createNwcInvoice(amountSats, description) {
   if (!isNwcConnected()) throw new Error('NWC not connected')
   const result = await executeNip47Request('make_invoice', {
     amount: amountSats * 1000,
-    description: description || 'lunar payment'
+    description: description || 'astral payment'
   })
   return { invoice: result.invoice, paymentHash: result.payment_hash }
 }

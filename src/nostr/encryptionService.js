@@ -1,7 +1,7 @@
 // Signer-agnostic NIP-44 self-encryption for relay-stored backups.
 //
 // Encrypts to the user's own pubkey so only they can read it. Works across
-// every Lunar signer:
+// every Astral signer:
 //   - local key (Vuex keys.priv) → nostr-tools nip44 directly
 //   - NIP-07 extension → window.nostr.nip44
 //   - NIP-46 bunker → nip44_*_via RPC (src/nostr/nip46Rpc.js)
@@ -24,7 +24,7 @@ function hasNip07Nip44() {
 }
 
 // Whether the active signer can produce a backup that's later decryptable.
-// All three Lunar signer types encrypt under the user's real key, so all are
+// All three Astral signer types encrypt under the user's real key, so all are
 // allowed (NIP-46 goes through nip44_encrypt RPC to the bunker's user key).
 export function canBackup(store) {
   if (!store?.state?.keys?.pub) return false

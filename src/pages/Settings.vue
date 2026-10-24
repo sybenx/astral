@@ -191,10 +191,10 @@
             <p class='text-warning'>Make sure you back up your private key! Anyone with it controls your account.</p>
           </template>
           <template v-else-if="authMethod === 'nip07'">
-            <p>You're signed in with a <strong>browser extension</strong>. Your private key stays in the extension — Lunar never sees it. This is the secure setup, so there's nothing to back up here.</p>
+            <p>You're signed in with a <strong>browser extension</strong>. Your private key stays in the extension — Astral never sees it. This is the secure setup, so there's nothing to back up here.</p>
           </template>
           <template v-else-if="authMethod === 'nip46'">
-            <p>You're signed in with a <strong>remote signer</strong>. Your private key stays in your signer — Lunar never sees it. This is the secure setup, so there's nothing to back up here.</p>
+            <p>You're signed in with a <strong>remote signer</strong>. Your private key stays in your signer — Astral never sees it. This is the secure setup, so there's nothing to back up here.</p>
           </template>
           <template v-else>
             <p>You're signed in with a <strong>public key only</strong> (read-only). To publish, sign in with your private key, a browser extension, or a remote signer.</p>
@@ -239,11 +239,11 @@ import ndk from '../nostr/ndk'
 
 const metaData = {
   // sets document title
-  title: 'lunar - settings',
+  title: 'astral - settings',
 
   // meta tags
   meta: {
-    description: { name: 'description', content: 'Nostr and lunar user configuration' },
+    description: { name: 'description', content: 'Nostr and astral user configuration' },
     keywords: { name: 'keywords', content: 'nostr decentralized social media' },
     equiv: { 'http-equiv': 'Content-Type', content: 'text/html; charset=UTF-8' },
   },

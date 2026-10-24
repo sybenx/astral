@@ -10,11 +10,11 @@ import { createMetaMixin } from 'quasar'
 
 const metaData = {
   // sets document title
-  title: 'lunar - search, follows',
+  title: 'astral - search, follows',
 
   // meta tags
   meta: {
-    description: { name: 'description', content: 'Nostr search and follows on lunar' },
+    description: { name: 'description', content: 'Nostr search and follows on astral' },
     keywords: { name: 'keywords', content: 'nostr decentralized social media' },
     equiv: { 'http-equiv': 'Content-Type', content: 'text/html; charset=UTF-8' },
   },

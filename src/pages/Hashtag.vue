@@ -49,7 +49,7 @@ import { createMetaMixin } from 'quasar'
 export default defineComponent({
   name: 'Hashtag',
   mixins: [helpersMixin, createMetaMixin(() => ({
-    title: `lunar - #${window.location.pathname.split('/')[2]}`,
+    title: `astral - #${window.location.pathname.split('/')[2]}`,
     meta: {
       description: { name: 'description', content: `Nostr events tagged with ${window.location.pathname.split('/')[2]}` },
       keywords: { name: 'keywords', content: 'nostr decentralized social media' },

@@ -9,7 +9,7 @@ let onConnectHandler = null // single handler the wallet store registers
 export async function initBitcoinConnect() {
   if (initialized) return
   const { init, onConnected, onDisconnected } = await import('@getalby/bitcoin-connect')
-  init({ appName: 'Lunar', showBalance: true })
+  init({ appName: 'Astral', showBalance: true })
   // Fires on connect AND on auto-reconnect of a previously-connected wallet,
   // so the provider is restored after a reload.
   onConnected((provider) => {

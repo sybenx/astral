@@ -77,7 +77,7 @@ import { useRelayStore } from '../stores/relay'
 import { createMetaMixin } from 'quasar'
 
 const metaData = {
-  title: 'lunar - inbox',
+  title: 'astral - inbox',
   meta: {
     description: { name: 'description', content: 'Nostr direct message inbox' },
     keywords: { name: 'keywords', content: 'nostr decentralized social media' },

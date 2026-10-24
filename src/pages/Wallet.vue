@@ -73,9 +73,9 @@ import BaseWalletConnect from 'components/BaseWalletConnect.vue'
 import BaseWalletCard from 'components/BaseWalletCard.vue'
 
 const metaData = {
-  title: 'lunar - wallet',
+  title: 'astral - wallet',
   meta: {
-    description: { name: 'description', content: 'Lightning wallet and zap settings on lunar' },
+    description: { name: 'description', content: 'Lightning wallet and zap settings on astral' },
     keywords: { name: 'keywords', content: 'nostr decentralized social media lightning zap' },
     equiv: { 'http-equiv': 'Content-Type', content: 'text/html; charset=UTF-8' },
   },

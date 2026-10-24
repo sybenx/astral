@@ -53,7 +53,7 @@ import BaseButtonLoadMore from 'components/BaseButtonLoadMore.vue'
 import { createMetaMixin } from 'quasar'
 
 const metaData = {
-  title: 'lunar',
+  title: 'astral',
   meta: {
     description: { name: 'description', content: 'decentralized social media feed built on Nostr' },
     keywords: { name: 'keywords', content: 'nostr decentralized social media' },

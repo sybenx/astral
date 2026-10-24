@@ -169,7 +169,7 @@ export const useUserStore = defineStore('user', {
         !privateKinds.has(unpublishedEvent.kind) &&
         !(unpublishedEvent.tags || []).some((t) => t[0] === 'client')
       ) {
-        unpublishedEvent.tags = [...(unpublishedEvent.tags || []), ['client', 'lunar']]
+        unpublishedEvent.tags = [...(unpublishedEvent.tags || []), ['client', 'astral']]
       }
 
       // signAsynchronously expects { state: { keys: { priv } } } shape

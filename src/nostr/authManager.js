@@ -21,8 +21,8 @@ import { hexToBytes } from '@noble/hashes/utils'
 import { Nip46NdkSigner } from './nip46Signer'
 
 const browser = typeof window !== 'undefined'
-const APP_NAME = 'lunar'
-const APP_URL = 'https://lunar.ninja'
+const APP_NAME = 'astral'
+const APP_URL = browser ? window.location.origin : ''
 
 // localStorage keys
 const LS_PUBKEY = 'astral_loggedInPublicKey'
