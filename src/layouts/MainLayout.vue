@@ -397,6 +397,8 @@ export default defineComponent({
         setCssVar('secondary', secondary)
         setCssVar('accent', accent)
         setCssVar('background', background)
+        // the installed app's title bar follows the theme
+        document.querySelector('meta[name="theme-color"]')?.setAttribute('content', background)
         this.$q.dark.set(this.lightOrDark(background) === 'dark')
         this.updateFont(this.$store.state.config.preferences.font)
     },

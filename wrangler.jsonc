@@ -1,10 +1,10 @@
 // Cloudflare Worker serving the built SPA at https://astral.syb.lol.
-// Deploy: npm run build:spa && npm run deploy
+// Deploy: npm run deploy (builds the PWA into dist/pwa first)
 {
   "name": "astral-syb-lol",
   "compatibility_date": "2026-09-21",
   "assets": {
-    "directory": "dist/spa",
+    "directory": "dist/pwa",
     "not_found_handling": "single-page-application"
   },
   "routes": [

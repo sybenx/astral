@@ -159,6 +159,20 @@ inside a nested scroller. iOS ignores `user-scalable=no`, so zoom always works.
 15. `signAsynchronously` bypasses NDK for local keys → always `NDKEvent.sign()`
     (`utils/event.js:44`). S
 
+## PWA (since 2026-10-24)
+- `npm run deploy` builds PWA mode (`dist/pwa`) and deploys it; `wrangler.jsonc` serves `dist/pwa`.
+- Silent by design (FEEL.md): Chrome's install mini-bar is suppressed, there's no update prompt.
+- Updates: `skipWaiting` is off. A new `sw.js` installs and waits; `src-pwa/register-service-worker.js`
+  swaps it in only while the page is hidden, then reloads. Swapping under a visible page could leave
+  it requesting lazy chunks the new deploy no longer has. `src/boot/stale-chunks.js` reloads once on
+  `vite:preloadError` as a safety net.
+- Precache is the app shell only (index.html and what it loads, manifest, icons: ~0.6 MB). Page chunks,
+  fonts and wallet icons are cached on first use (CacheFirst, they're hashed or static).
+- `public/_headers`: `/assets/*` immutable, `sw.js` and `index.html` no-cache.
+- Checked locally under `wrangler dev`: install, update waiting while visible, swap + reload on hidden,
+  stale-chunk reload once. The Claude browser pane doesn't fire visibilitychange on tab switches, so
+  "hidden" was simulated.
+
 ## Gotchas
 - `$primary` is **white** (#ffffff) → any FILLED `q-btn color="primary"` is
   white-on-white. Use `text-color="dark"` or `outline`.
@@ -195,7 +209,7 @@ delete dead code. Each phase ships as a PR.
 1. **Spark wallet** — `@breeztech/breez-sdk-spark` (big WASM). Currently
    scaffolded as "coming soon" (kind 4) in the wallet store. zapcooking
    `src/lib/spark/` is the reference.
-2. **Phase 6 polish** — re-enable PWA (then remove `src/boot/unregister-sw.js`),
+2. **Phase 6 polish** — ~~re-enable PWA~~ (done 2026-10-24: silent PWA, see below),
    delete orphaned `src/*.worker.js` + sql.js, NIP-65 relay management UI,
    migrate `astral_*` storage keys if wanted.
 

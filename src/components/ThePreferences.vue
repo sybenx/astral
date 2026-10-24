@@ -157,7 +157,10 @@ export default {
     updateColor(color, colorName) {
       setCssVar(colorName, color)
       this.preferences.color[colorName] = color
-      if (colorName === 'background') this.$q.dark.set(this.lightOrDark(color) === 'dark')
+      if (colorName === 'background') {
+        this.$q.dark.set(this.lightOrDark(color) === 'dark')
+        document.querySelector('meta[name="theme-color"]')?.setAttribute('content', color)
+      }
     },
     updateTheme(theme) {
       for (let colorName of Object.keys(theme)) this.updateColor(theme[colorName], colorName)

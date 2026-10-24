@@ -5,6 +5,8 @@
 
 import { defineConfig } from '@quasar/app-vite/wrappers'
 import { nodePolyfills } from 'vite-plugin-node-polyfills'
+import { readFileSync } from 'node:fs'
+import { join } from 'node:path'
 
 export default defineConfig((ctx) => {
   // Public origin used for absolute Open Graph URLs in index.html. Set SITE_URL
@@ -24,7 +26,7 @@ export default defineConfig((ctx) => {
     // app boot file (/src/boot)
     // --> boot files are part of 'main.js'
     // https://v2.quasar.dev/quasar-cli-vite/boot-files
-    boot: ['unregister-sw', 'pinia', 'vuex', 'auth', 'bitcoin-connect', 'global-components', 'i18n'],
+    boot: ['stale-chunks', 'pinia', 'vuex', 'auth', 'bitcoin-connect', 'global-components', 'i18n'],
 
     // https://v2.quasar.dev/quasar-cli-vite/quasar-config-js#css
     css: ['app.scss'],
@@ -134,27 +136,41 @@ export default defineConfig((ctx) => {
     },
 
     // https://v2.quasar.dev/quasar-cli-vite/developing-pwa/configuring-pwa
+    // The manifest lives in src-pwa/manifest.json; update handling is in
+    // src-pwa/register-service-worker.js.
     pwa: {
-      workboxMode: 'generateSW', // 'generateSW' or 'injectManifest'
+      workboxMode: 'GenerateSW',
       injectPwaMetaTags: true,
       swFilename: 'sw.js',
       manifestFilename: 'manifest.json',
       useCredentialsForManifestTag: false,
-      manifest: {
-        name: 'Astral',
-        short_name: 'Astral',
-        description: 'decentralized social platform (nostr client)',
-        display: 'standalone',
-        orientation: 'portrait',
-        background_color: '#1f1f1f',
-        theme_color: '#1f1f1f',
-        icons: [
-          { src: 'icons/favicon-32x32.png', sizes: '32x32', type: 'image/png' },
-          { src: 'icons/favicon-128x128.png', sizes: '128x128', type: 'image/png' },
-          { src: 'icons/android-chrome-192x192.png', sizes: '192x192', type: 'image/png' },
-          { src: 'icons/favicon-256x256.png', sizes: '256x256', type: 'image/png' },
-          { src: 'icons/favicon-384x384.png', sizes: '384x384', type: 'image/png' },
-          { src: 'icons/android-chrome-512x512.png', sizes: '512x512', type: 'image/png' }
+      extendGenerateSWOptions(cfg) {
+        // A new version waits until the page is hidden (see
+        // register-service-worker.js) instead of taking over open pages.
+        cfg.skipWaiting = false
+        // Precache only the app shell: index.html and what it loads, the
+        // manifest and icons. Page chunks, fonts and wallet icons are cached
+        // the first time they're used (runtimeCaching below), so a first visit
+        // on a phone doesn't download every page up front.
+        cfg.globIgnores = [...(cfg.globIgnores || []), '**/_headers']
+        cfg.manifestTransforms = [
+          async (entries) => {
+            const html = readFileSync(join(cfg.globDirectory, 'index.html'), 'utf8')
+            const shell = new Set([...html.matchAll(/(?:src|href)="\/?([^"?#]+)"/g)].map((m) => m[1]))
+            const keep = entries.filter((e) =>
+              ['index.html', 'manifest.json', 'favicon.ico'].includes(e.url) ||
+              e.url.startsWith('icons/') ||
+              shell.has(e.url)
+            )
+            return { manifest: keep, warnings: [] }
+          }
+        ]
+        cfg.runtimeCaching = [
+          {
+            urlPattern: ({ url, sameOrigin }) => sameOrigin && /^\/(assets|wallet-icons)\//.test(url.pathname),
+            handler: 'CacheFirst', // hashed or static files: they never change
+            options: { cacheName: 'astral-static', expiration: { maxEntries: 200 } }
+          }
         ]
       }
     },

@@ -10,7 +10,7 @@
     "dev": "quasar dev",
     "build:pwa": "quasar build -m pwa",
     "build:spa": "quasar build",
-    "deploy": "npx wrangler@4 deploy",
+    "deploy": "quasar build -m pwa && npx wrangler@4 deploy",
     "lint": "eslint --ext .js,.vue ./",
     "format": "prettier --write \"**/*.{js,vue,scss,html,md,json}\" --ignore-path .gitignore",
     "test": "echo \"No test specified\" && exit 0"
@@ -60,7 +60,9 @@
     "eslint-plugin-vue": "^9.24.0",
     "postcss": "^8.4.38",
     "prettier": "^3.2.5",
-    "vite-plugin-node-polyfills": "^0.28.0"
+    "register-service-worker": "^1.7.2",
+    "vite-plugin-node-polyfills": "^0.28.0",
+    "workbox-build": "^7.4.1"
   },
   "engines": {
     "node": ">= 18",
