@@ -1,10 +1,11 @@
-# Vendored: Cosign sign-in (site side)
+# Vendored: Cosign sign-in and import (site side)
 
-Copied unchanged from [sybenx/cosign](https://github.com/sybenx/cosign) at tag
-`v0.7.0` (commit b9d0697da8632f5a037884d9f7f131aee2b7fcce):
+Copied unchanged from [sybenx/cosign](https://github.com/sybenx/cosign) `main` at
+commit 7167bab (after Cosign 0.10.3; full hash in `COSIGN-COMMIT`):
 
-- `src/pair.ts`, `src/ticket.ts`, `src/client.ts` from `site/src/`
+- `src/pair.ts`, `src/ticket.ts`, `src/client.ts`: signing in with a phone
+- `src/import.ts`, `src/member.ts`, `src/servers.ts`: moving a key held by this page into Cosign
 - `vendor/` from `site/vendor/` (QRST core and web adapters, QRST commit 46ee02b)
 
-Do not edit these files; update them by copying a newer tag. Astral's glue lives in
-`src/nostr/cosign.js`. MIT licensed (`LICENSE`, `vendor/QRST-LICENSE`).
+Do not edit these files; update them by copying a newer commit. Astral's glue lives in
+`src/nostr/signIn.js`. MIT licensed (`LICENSE`, `vendor/QRST-LICENSE`).

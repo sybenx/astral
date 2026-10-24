@@ -314,7 +314,7 @@
 </template>
 
 <script>
-import { defineComponent } from 'vue'
+import { defineComponent, markRaw } from 'vue'
 import helpersMixin from '../utils/mixin'
 import { generatePrivateKey, getPublicKey, nip06 } from '../utils/ntcompat'
 import { uploadImage } from '../nostr/mediaUpload'
@@ -564,7 +564,8 @@ export default defineComponent({
       this.code = ''
       this.status = ''
       this.showCode = false
-      const pairing = auth.startSignIn({
+      // markRaw: kept as is, so `this.pairing === pairing` tells a live pairing from a replaced one.
+      const pairing = markRaw(auth.startSignIn({
         code: (uri) => { this.code = uri },
         status: (text) => { this.status = text },
         confirm: (rendering, yes, no) => {
@@ -572,7 +573,7 @@ export default defineComponent({
           this.confirmFn = (ok) => (ok ? yes() : no())
           this.stage = 'confirm'
         }
-      })
+      }))
       this.pairing = pairing
       pairing.done.then(
         () => { this.stage = 'signing-in' }, // subscription → handleAuthenticated

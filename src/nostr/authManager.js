@@ -23,7 +23,8 @@ import {
   settleRelays,
   signOut,
   forgetSignIn,
-  isCosign
+  isCosign,
+  moveKeyToPhone
 } from './signIn'
 
 const browser = typeof window !== 'undefined'
@@ -265,6 +266,28 @@ export class AuthManager {
       localStorage.setItem(LS_METHOD, method)
       this._signedIn(user, userPubkey, method)
       if (method === 'nostrconnect') settleRelays(signer)
+      return userPubkey
+    })
+    return { done, cancel: p.cancel }
+  }
+
+  // "Protect your account": move the key this browser holds into Cosign. When the
+  // phone has it, sign in through Cosign as the same account. The caller removes its
+  // copy of the key only after `done` resolves; any failure leaves the account as it was.
+  moveToPhone(secretKey, expectedPubkey, ui) {
+    const p = moveKeyToPhone(secretKey, ui)
+    const done = p.done.then(async (signer) => {
+      const userPubkey = await signer.getPublicKey()
+      if (userPubkey !== expectedPubkey) {
+        // Never switch accounts silently. The key wasn't removed, so nothing is lost.
+        signer.close()
+        throw new Error('Cosign answered for a different account, so nothing was changed.')
+      }
+      const user = this._bindRemoteSigner(signer, userPubkey)
+      localStorage.removeItem(LS_PRIVKEY)
+      localStorage.setItem(LS_PUBKEY, userPubkey)
+      localStorage.setItem(LS_METHOD, 'cosign')
+      this._signedIn(user, userPubkey, 'cosign')
       return userPubkey
     })
     return { done, cancel: p.cancel }

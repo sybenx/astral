@@ -20,7 +20,7 @@
       <div id='middle-page'>
         <q-page-container ref='pageContainer'>
           <!-- <TheKeyInitializationDialog v-if='!$store.state.keys.pub && !lookingAround' @look-around='lookingAround=true'/> -->
-          <TheProtectAccountBanner v-if='$store.state.keys.priv'/>
+          <TheProtectAccountBanner v-if='$store.state.keys.pub'/>
           <router-view v-slot="{ Component }">
             <keep-alive :include='cachedPages'>
               <component :is="Component" :key='$route.path' :looking-around='lookingAround' @scroll-to-rect='scrollToRect' @reply-event='setReplyEvent' @update-font='updateFont'/>
