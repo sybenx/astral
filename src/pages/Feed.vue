@@ -31,6 +31,7 @@
           position='standalone'
           @click.stop='toEvent(item)'
         />
+        <div class='bottom-border'/>
       </div>
     </q-virtual-scroll>
 

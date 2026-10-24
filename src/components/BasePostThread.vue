@@ -158,13 +158,3 @@ export default {
   }
 }
 </script>
-
-<style lang='scss'>
-
-.bottom-border {
-  border-bottom: 2px solid var(--q-accent);
-  opacity: .25;
-  height: 0;
-  margin: 0 .4rem;
-}
-</style>

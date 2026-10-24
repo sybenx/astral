@@ -1,9 +1,17 @@
 // app global css in SCSS form
 
-// The Astral accent is a light gold (#ecc865); Quasar gives filled accent
+// The "astral" theme's accent is a light gold (#ecc865); Quasar gives filled accent
 // buttons white text, which is hard to read on yellow. Use dark text instead.
 // Only targets filled buttons (Quasar adds .bg-accent for those; flat/outline
 // use .text-accent and are unaffected).
 .q-btn.bg-accent {
   color: #1f1f1f !important;
+}
+
+// Faded divider under each top-level post (threads, feed, hashtag pages)
+.bottom-border {
+  border-bottom: 2px solid var(--q-accent);
+  opacity: .25;
+  height: 0;
+  margin: 0 .4rem;
 }

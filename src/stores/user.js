@@ -23,9 +23,9 @@ function buildConfig(saved) {
     },
     preferences: {
       color: {
-        primary: color.primary || '#d671ea',
-        secondary: color.secondary || '#5af2e0',
-        accent: color.accent || '#ecc865',
+        primary: color.primary || '#ffffff',
+        secondary: color.secondary || '#aaaaaa',
+        accent: color.accent || '#777777',
         background: color.background || '#1f1f1f'
       },
       font,
