@@ -32,8 +32,12 @@ mv ~/.claude/projects/-Users-daniel-GitHub-astral \
 After: check the Docker build GitHub Action + any lunar.ninja deploy/DNS.
 
 ## Architecture (the important seams)
-- **Toolchain:** `@quasar/app-vite` v1 (CommonJS `quasar.config.js`, async fn +
-  dynamic import for ESM `vite-plugin-node-polyfills`). Vue 3 + Quasar 2.
+- **Toolchain:** `@quasar/app-vite` v2 on Vite 8 (since 2026-10-24; was v1 / Vite 2.9).
+  `package.json` is `"type": "module"`, `quasar.config.js` is ESM. Vuex is installed by
+  `src/boot/vuex.js` (app-vite v2 only auto-wires Pinia). The `process` polyfill is a
+  global in dev and injected in builds; injecting it in dev shadows Quasar's
+  `process.env` (the router fell back to hash mode). Vue 3 + Quasar 2. Deploy:
+  `npm run build:spa && npm run deploy` (Cloudflare, `wrangler.jsonc`).
 - **State:** legacy **Vuex** still drives feed/profile UI; **Pinia**
   (`src/boot/pinia.js`) backs new stores (wallet). Deliberate dual-store during
   migration.

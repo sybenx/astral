@@ -1,20 +1,12 @@
 /* eslint-env node */
 
-/*
- * This file runs in a Node context (it's NOT transpiled by Babel), so use only
- * the ES6 features that are supported by your Node version. https://node.green/
- */
-
 // Configuration for your app
-// https://v2.quasar.dev/quasar-cli-vite/quasar-config-js
+// https://v2.quasar.dev/quasar-cli-vite/quasar-config-file
 
-const { configure } = require('quasar/wrappers')
+import { defineConfig } from '@quasar/app-vite/wrappers'
+import { nodePolyfills } from 'vite-plugin-node-polyfills'
 
-module.exports = configure(async function (/* ctx */) {
-  // vite-plugin-node-polyfills is ESM-only; load it via dynamic import so this
-  // CommonJS config (what @quasar/app-vite v1 expects) can still use it.
-  const { nodePolyfills } = await import('vite-plugin-node-polyfills')
-
+export default defineConfig((ctx) => {
   // Public origin used for absolute Open Graph URLs in index.html. Set SITE_URL
   // at build time; on Vercel it falls back to the production domain.
   const siteUrl = (
@@ -32,7 +24,7 @@ module.exports = configure(async function (/* ctx */) {
     // app boot file (/src/boot)
     // --> boot files are part of 'main.js'
     // https://v2.quasar.dev/quasar-cli-vite/boot-files
-    boot: ['unregister-sw', 'pinia', 'auth', 'bitcoin-connect', 'global-components', 'i18n'],
+    boot: ['unregister-sw', 'pinia', 'vuex', 'auth', 'bitcoin-connect', 'global-components', 'i18n'],
 
     // https://v2.quasar.dev/quasar-cli-vite/quasar-config-js#css
     css: ['app.scss'],
@@ -100,8 +92,11 @@ module.exports = configure(async function (/* ctx */) {
         [
           nodePolyfills,
           {
-            include: ['buffer', 'crypto', 'stream', 'util', 'process'],
-            globals: { Buffer: true, global: true, process: true }
+            include: ['buffer', 'crypto', 'stream', 'util', 'process', 'vm'],
+            // In dev, injecting the process shim into our own modules shadows
+            // the process.env values Quasar defines (the router fell back to
+            // hash mode), so dev gets the shim as a global instead.
+            globals: { Buffer: true, global: true, process: ctx.dev ? 'dev' : true }
           }
         ]
       ]

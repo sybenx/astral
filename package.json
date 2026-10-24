@@ -5,6 +5,7 @@
   "productName": "Astral",
   "author": "monica <monlovesmango@users.noreply.github.com>",
   "private": true,
+  "type": "module",
   "scripts": {
     "dev": "quasar dev",
     "build:pwa": "quasar build -m pwa",
@@ -52,14 +53,14 @@
     "vuex": "^4.1.0"
   },
   "devDependencies": {
-    "@quasar/app-vite": "^1.9.0",
+    "@quasar/app-vite": "^2.6.2",
     "autoprefixer": "^10.4.19",
     "eslint": "^8.57.0",
     "eslint-config-prettier": "^9.1.0",
     "eslint-plugin-vue": "^9.24.0",
     "postcss": "^8.4.38",
     "prettier": "^3.2.5",
-    "vite-plugin-node-polyfills": "^0.22.0"
+    "vite-plugin-node-polyfills": "^0.28.0"
   },
   "engines": {
     "node": ">= 18",
