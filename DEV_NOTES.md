@@ -121,7 +121,15 @@ inside a nested scroller. iOS ignores `user-scalable=no`, so zoom always works.
 - Login now lands on the **feed** (not `/settings?initUser`); removed the
   auto-opening "Your keys" dialog.
 
-**Still open (do as ONE systematic sweep next session):**
+**Sweep 2026-10-24:** every `v-for` checked. Already bounded: feed / hashtag / notifications
+(feedEngine + virtual scroll), inbox list, DMs (50 per scroll up), profile posts (100 per tap),
+follow reorder (capped 300). Fixed: thread replies mount 30 at a time as you scroll (Event.vue);
+NIP-05 domain search shows and fetches users 50 at a time instead of every name on the domain
+(TheSearchMenu); the font picker loads a preview font only when its row scrolls into view, not
+all ~200 on open (ThePreferences). Images: `decoding='async'`, imeta alt text; inline videos
+`preload="metadata"`. A device memory timeline is still the way to confirm images vs profiles.
+
+**Older notes (kept for history):**
 - Grep every `v-for` over a big collection and virtualize/bound it. Known
   remaining: **Messages/DM list**, **Notifications**, the **follows-reorder
   Draggable** in `TheSearchMenu` (renders all follows in reorder mode).

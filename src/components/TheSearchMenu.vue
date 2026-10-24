@@ -58,7 +58,9 @@
           <BaseUserCard :pubkey='domainDefaultPubkey'/>
         </div>
         <q-list class='q-pt-xs q-pl-sm' style='overflow-y: auto; max-height: 35vh;'>
-          <BaseUserCard v-for='user in domainUsers' :key='user.pubkey' :pubkey='user.pubkey'/>
+          <BaseUserCard v-for='user in domainUsersShown' :key='user.pubkey' :pubkey='user.pubkey'/>
+          <!-- big domains list thousands of names: show and fetch them in steps -->
+          <div v-if='domainUsers.length > domainLimit' v-intersection='showMoreDomainUsers' style='min-height: 1px;'/>
         </q-list>
         <q-separator color='accent'/>
       </div>
@@ -139,6 +141,8 @@ import { searchProfiles } from '../nostr/profileSearch'
 
 const REORDER_CAP = 300
 
+
+const DOMAIN_PAGE = 50 // NIP-05 domain users shown and fetched at a time
 export default defineComponent({
   name: 'TheSearchMenu',
   mixins: [helpersMixin],
@@ -151,6 +155,7 @@ export default defineComponent({
       searching: false,
       domainMode: false,
       domainNames: {},
+      domainLimit: DOMAIN_PAGE,
       reordering: false,
       reorderedFollows: [],
       dragging: false,
@@ -178,6 +183,9 @@ export default defineComponent({
         .filter((name) => name !== '_')
         .map((name) => ({ name, pubkey: this.domainNames[name] }))
     },
+    domainUsersShown() {
+      return this.domainUsers.slice(0, this.domainLimit)
+    },
     domain() {
       const [name, domain] = this.searchingProfile.split('@')
       return domain || name
@@ -196,6 +204,13 @@ export default defineComponent({
   },
 
   methods: {
+    showMoreDomainUsers(entry) {
+      if (!entry.isIntersecting) return
+      const from = this.domainLimit
+      this.domainLimit += DOMAIN_PAGE
+      this.domainUsers.slice(from, this.domainLimit).forEach((u) => this.loadProfile(u.pubkey))
+    },
+
     async runNameSearch(query) {
       this.searching = true
       try {
@@ -239,9 +254,10 @@ export default defineComponent({
       if (this.searchingProfile.match(/^([a-zA-Z0-9-_.À-῿⠀-�]*@)?[a-zA-Z0-9-_.]+[.]{1}[a-zA-Z0-9-_.]+$/)) {
         if (this.searchingProfile.match(/^@/) || !this.searchingProfile.match(/@/)) {
           this.domainNames = await nip05.searchDomain(this.domain)
+          this.domainLimit = DOMAIN_PAGE
           if (this.domainUsers.length || this.domainDefaultPubkey) {
             if (this.domainDefaultPubkey) this.loadProfile(this.domainDefaultPubkey)
-            this.domainUsers.forEach((u) => this.loadProfile(u.pubkey))
+            this.domainUsersShown.forEach((u) => this.loadProfile(u.pubkey))
             this.searching = false
             this.domainMode = true
             return

@@ -39,8 +39,12 @@
           <template #default>{{ preferences.font }}</template>
           <template #list-items>
             <li v-for='(font, index) in fonts' :key='index' class='font-item' @click.stop='updateFont(font)'>
-              <link :href="`https://fonts.googleapis.com/css2?family=${googleFontsName(font)}`" rel="stylesheet"/>
-              <span :style="`font-family: '${font}';`">{{font}}</span>
+              <!-- load each preview font only once its row scrolls into view,
+                   not all ~200 the moment the list opens -->
+              <q-intersection once class='font-preview'>
+                <link :href="`https://fonts.googleapis.com/css2?family=${googleFontsName(font)}`" rel="stylesheet"/>
+                <span :style="`font-family: '${font}';`">{{font}}</span>
+              </q-intersection>
             </li>
           </template>
         </BaseSelect>
@@ -230,6 +234,10 @@ export default {
 </script>
 
 <style lang='css' scoped>
+/* a row's height before its preview loads, so rows out of view stay out of view */
+.font-preview {
+  min-height: 1.5em;
+}
 .section {
   padding: .5rem;
 }

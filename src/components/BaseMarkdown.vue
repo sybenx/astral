@@ -35,6 +35,8 @@ import BaseLightningCard from 'components/BaseLightningCard.vue'
 import BaseLinkPreview from 'components/BaseLinkPreview.vue'
 
 // Module-level ref so the markdown-it plugin (defined once, outside Vue) can
+const escapeAttr = (text) => String(text).replace(/[&"<>]/g, (c) => ({ '&': '&amp;', '"': '&quot;', '<': '&lt;', '>': '&gt;' })[c])
+
 // read per-render imeta data without needing a component instance.
 let _imeta = null
 
@@ -86,13 +88,18 @@ md.use(subscript)
     md.renderer.rules.image = (tokens, idx) => {
       let src = tokens[idx].attrs[[tokens[idx].attrIndex('src')]][1]
       let trimmed = src.split('?')[0]
-      const imetaMime = _imeta?.get(src)?.mimeType || ''
+      const meta = _imeta?.get(src)
+      const imetaMime = meta?.mimeType || ''
       const isImage = trimmed.match(/\.(gif|png|jpe?g|svg|webp)$/i) || imetaMime.startsWith('image/')
       const isVideo = trimmed.match(/\.(mp4|webm|ogg)$/i) || imetaMime.startsWith('video/')
       if (isImage) {
-        return `<img src="${src}" async loading='lazy' style="max-width: 90%; max-height: 50vh;">`
+        // imeta alt text for screen readers; decoding off the main thread
+        // keeps scrolling smooth on phones
+        const alt = meta?.alt ? ` alt="${escapeAttr(meta.alt)}"` : ' alt=""'
+        return `<img src="${src}"${alt} loading='lazy' decoding='async' style="max-width: 90%; max-height: 50vh;">`
       } else if (isVideo) {
-        return `<video src="${src}" controls async style="max-width: 90%; max-height: 50vh;"></video>`
+        // metadata only until play: no video data downloaded while scrolling past
+        return `<video src="${src}" controls preload="metadata" style="max-width: 90%; max-height: 50vh;"></video>`
       }
       // Unknown type — fall back to a plain link
       return `<a href="${src}" target="_blank" rel="noopener noreferrer">${src}</a>`

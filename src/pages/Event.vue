@@ -27,9 +27,11 @@
 
     <div v-if="childrenThreadsFiltered.length">
       <div class="text-h6 text-bold q-px-sm">{{ $t('replies') }}</div>
-      <div v-for="(thread) in childrenThreadsFiltered" :key="thread[0].id">
+      <div v-for="(thread) in childrenThreadsShown" :key="thread[0].id">
         <BasePostThread :events="thread" @add-event='processChildEvent'/>
       </div>
+      <!-- popular notes can have hundreds of replies: mount more as you scroll -->
+      <div v-if='childrenThreadsFiltered.length > replyLimit' v-intersection='showMoreReplies' style='min-height: 1px;'/>
     </div>
     <div style='min-height: 30vh;'/>
   </q-page>
@@ -56,6 +58,8 @@ const metaData = {
   },
 }
 
+
+const REPLY_PAGE = 30 // replies mounted at a time
 export default defineComponent({
   name: 'Event',
   emits: ['scroll-to-rect'],
@@ -77,6 +81,7 @@ export default defineComponent({
       childrenSet: new Set(),
       sub: {},
       profilesUsed: new Set(),
+      replyLimit: REPLY_PAGE,
     }
   },
 
@@ -93,6 +98,9 @@ export default defineComponent({
   computed: {
     childrenThreadsFiltered() {
       return this.childrenThreads.filter(thread => thread[0].interpolated.replyEvents.includes(this.hexEventId))
+    },
+    childrenThreadsShown() {
+      return this.childrenThreadsFiltered.slice(0, this.replyLimit)
     },
     ancestorsCompiled() {
       if (!this.rootAncestor) return this.ancestors
@@ -121,6 +129,10 @@ export default defineComponent({
   },
 
   methods: {
+    showMoreReplies(entry) {
+      if (entry.isIntersecting) this.replyLimit += REPLY_PAGE
+    },
+
     async start() {
       let relays = Object.keys(this.$store.state.relays).length ? Object.keys(this.$store.state.relays) : Object.keys(this.$store.state.defaultRelays)
       this.sub.event = await dbStreamEvent({ ids: [this.hexEventId], relays }, events => {
@@ -156,6 +168,7 @@ export default defineComponent({
       this.childrenSet = new Set()
       this.sub = {}
       this.profilesUsed = new Set()
+      this.replyLimit = REPLY_PAGE
     },
 
     async subRootAncestor() {
