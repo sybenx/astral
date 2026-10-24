@@ -77,6 +77,8 @@ export function createFeed({
   let oldestUntil = nowSec() // pagination cursor for older pages
   let newestAt = 0 // created_at of the newest event we've shown
   let started = false
+  let primed = false // the first page is in, so newestAt means something
+  let liveWanted = true // false while stop()ped (hidden tab, sign-in dialog up)
 
   const at = (id) => events.get(id)?.created_at || 0
 
@@ -183,7 +185,15 @@ export function createFeed({
     }
     if (page.length < pageSize) reachedEnd.value = true
     loading.value = false
-    startLive()
+    primed = true
+    if (liveWanted) startLive()
+  }
+
+  // Re-open the live tail after stop(). Before the first page is in, newestAt
+  // isn't known yet, so start() opens it instead.
+  function resume() {
+    liveWanted = true
+    if (primed) startLive()
   }
 
   async function loadMore() {
@@ -208,6 +218,7 @@ export function createFeed({
   }
 
   function stop() {
+    liveWanted = false
     if (liveSub) {
       try {
         liveSub.stop()
@@ -226,6 +237,8 @@ export function createFeed({
     timeline.value = []
     pending.value = []
     started = false
+    primed = false
+    liveWanted = true
     reachedEnd.value = false
     oldestUntil = nowSec()
     newestAt = 0
@@ -243,7 +256,7 @@ export function createFeed({
     loadMore,
     showNew,
     stop,
-    resume: startLive, // re-open the live tail after stop() (visibility gating)
+    resume, // re-open the live tail after stop() (visibility / sign-in gating)
     destroy
   }
 }

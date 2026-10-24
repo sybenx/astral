@@ -71,6 +71,10 @@ export default defineComponent({
     BaseButtonLoadMore,
   },
 
+  props: {
+    lookingAround: { type: Boolean, default: false },
+  },
+
   data() {
     return {
       feedName: 'follows',
@@ -98,21 +102,24 @@ export default defineComponent({
       void this.tick
       return this.engine ? this.engine.reachedEnd.value : false
     },
+    // The welcome dialog is up (MainLayout shows it until a key or "look around").
+    behindSignIn() {
+      return !this.$store.state.keys.pub && !this.lookingAround
+    },
   },
 
   watch: {
     feedName(curr, prev) {
       if (curr !== prev) this.build()
     },
+    behindSignIn() {
+      this.syncLive()
+    },
   },
 
   mounted() {
     this.build()
-    this._onVisibility = () => {
-      if (!this.engine) return
-      if (document.hidden) this.engine.stop()
-      else this.engine.resume()
-    }
+    this._onVisibility = () => this.syncLive()
     document.addEventListener('visibilitychange', this._onVisibility)
   },
 
@@ -152,7 +159,16 @@ export default defineComponent({
       ]
       this.$watch(() => this._bumps.map((r) => r.value), () => { this.tick++ }, { deep: false })
 
+      this.syncLive()
       this.engine.start().then(() => this.ensureProfiles(0, 20))
+    },
+
+    // The live tail runs only while someone can see it: not in a hidden tab,
+    // and not behind the sign-in dialog.
+    syncLive() {
+      if (!this.engine) return
+      if (document.hidden || this.behindSignIn) this.engine.stop()
+      else this.engine.resume()
     },
 
     getEvent(id) {

@@ -2,8 +2,17 @@
   <q-layout>
     <link v-if='!updatingFont' id='font-link' rel="stylesheet" :href="`https://fonts.googleapis.com/css2?family=${googleFontsName}`"/>
     <link id='emoji-font-link' rel="stylesheet" :href="`https://fonts.googleapis.com/css2?family=Noto+Color+Emoji&display-swap`"/>
-    <q-dialog v-if='!$store.state.keys.pub' v-model='initializeKeys' persistent>
-    <TheKeyInitializationDialog style='max-height: 85vh' @look-around='setLookingAroundMode'/>
+    <!-- Full screen on phones, so the sign-in never competes with the feed behind it. -->
+    <q-dialog
+      v-if='!$store.state.keys.pub'
+      v-model='initializeKeys'
+      persistent
+      class='welcome-dialog'
+      :maximized='$q.screen.lt.sm'
+      :transition-show='$q.screen.lt.sm ? "slide-up" : "scale"'
+      :transition-hide='$q.screen.lt.sm ? "slide-down" : "scale"'
+    >
+    <TheKeyInitializationDialog :style='$q.screen.lt.sm ? "" : "max-height: 85vh"' @look-around='setLookingAroundMode'/>
     </q-dialog>
     <div id='layout-container' :ripple='false'>
       <div id='left-drawer' class='flex justify-end'>
@@ -419,6 +428,14 @@ body {
   height: 100vh;
   overflow: auto;
   font-family: var(--q-font), "Helvetica Neue", Helvetica, Arial, 'Noto Color Emoji', sans-serif;
+}
+/* Above the phone's bottom bar (z-top, 7000), still under notifications. */
+.welcome-dialog.q-dialog {
+  z-index: 7001;
+}
+/* Quasar's default backdrop barely shows on the dark theme. */
+.welcome-dialog .q-dialog__backdrop {
+  background: rgba(0, 0, 0, .75);
 }
 #layout-container {
   display: flex;

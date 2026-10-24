@@ -1,0 +1,13 @@
+// Cloudflare Worker serving the built SPA at https://astral.syb.lol.
+// Deploy: npm run build:spa && npm run deploy
+{
+  "name": "astral-syb-lol",
+  "compatibility_date": "2026-09-21",
+  "assets": {
+    "directory": "dist/spa",
+    "not_found_handling": "single-page-application"
+  },
+  "routes": [
+    { "pattern": "astral.syb.lol", "custom_domain": true }
+  ]
+}

@@ -19,6 +19,48 @@
 <script>
 import DOMPurify from 'dompurify'
 
+// microlink's free tier allows 25 requests a day per IP and answers 429 past
+// that. Share one cache and one backoff across every preview, and keep the
+// backoff across reloads, so a busy feed doesn't keep hitting the limit.
+const BACKOFF_KEY = 'astral.linkPreviewBackoff'
+const MIN_BACKOFF = 60 * 1000
+const MAX_BACKOFF = 6 * 60 * 60 * 1000
+const cards = new Map() // url → Promise<card | null>
+let queue = Promise.resolve()
+let backoff = { until: 0, wait: 0 }
+try { backoff = JSON.parse(localStorage.getItem(BACKOFF_KEY)) || backoff } catch { /* storage blocked */ }
+
+// Wait until microlink's reset time when it sends one, else back off exponentially.
+function pauseUntilReset(res) {
+  const reset = Number(res.headers.get('x-rate-limit-reset')) * 1000
+  const wait = Math.min(MAX_BACKOFF, Math.max(MIN_BACKOFF, backoff.wait * 2))
+  backoff = { until: reset > Date.now() ? reset : Date.now() + wait, wait }
+  try { localStorage.setItem(BACKOFF_KEY, JSON.stringify(backoff)) } catch { /* storage blocked */ }
+}
+
+async function fetchCard(url) {
+  if (Date.now() < backoff.until) return null
+  const res = await fetch(`https://api.microlink.io/?url=${encodeURIComponent(url)}`)
+  if (res.status === 429) {
+    pauseUntilReset(res)
+    cards.delete(url) // try this one again once the backoff ends
+    return null
+  }
+  if (!res.ok) return null
+  if (res.headers.get('x-rate-limit-remaining') === '0') pauseUntilReset(res)
+  else if (backoff.wait) {
+    backoff = { until: 0, wait: 0 }
+    try { localStorage.removeItem(BACKOFF_KEY) } catch { /* storage blocked */ }
+  }
+  const { status, data } = await res.json()
+  if (status !== 'success' || !data) return null
+  return {
+    title: data.title ? DOMPurify.sanitize(data.title) : null,
+    description: data.description ? DOMPurify.sanitize(data.description) : null,
+    image: data.image?.url || null,
+  }
+}
+
 export default {
   name: 'BaseLinkPreview',
   props: {
@@ -36,17 +78,14 @@ export default {
   },
 
   async mounted() {
-    try {
-      const res = await fetch(`https://api.microlink.io/?url=${encodeURIComponent(this.url)}`)
-      if (!res.ok) return
-      const { status, data } = await res.json()
-      if (status !== 'success' || !data) return
-      this.card = {
-        title: data.title ? DOMPurify.sanitize(data.title) : null,
-        description: data.description ? DOMPurify.sanitize(data.description) : null,
-        image: data.image?.url || null,
-      }
-    } catch { /* network error or rate limit — silently skip */ }
+    if (Date.now() < backoff.until) return
+    if (!cards.has(this.url)) {
+      // One request at a time, so a 429 stops the rest before they're sent.
+      const card = queue.then(() => fetchCard(this.url)).catch(() => null)
+      queue = card
+      cards.set(this.url, card)
+    }
+    this.card = await cards.get(this.url)
   }
 }
 </script>
