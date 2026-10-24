@@ -133,7 +133,7 @@
       <q-form v-if='editingRelays' class='q-py-xs' @submit="addRelay">
           <div class='flex row no-wrap q-mx-sm q-mt-sm' id='new-relay-input'>
             <q-input v-model='newRelay' placeholder='add a relay...' autofocus class='full-width' input-style='padding: 0;' @keypress.enter='addRelay' dense borderless/>
-            <q-btn icon='add' color='positive' size='sm' flat dense @click.stop='addRelay'/>
+            <q-btn icon='add' aria-label='add relay' color='positive' size='sm' flat dense @click.stop='addRelay'/>
           </div>
         <BaseSelectMultiple>
           <template #options>

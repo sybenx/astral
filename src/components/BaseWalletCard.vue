@@ -12,7 +12,11 @@
       <q-icon
         :name='wallet.balanceVisible ? "visibility" : "visibility_off"'
         size='xs'
+        role='button'
+        tabindex='0'
+        aria-label='show or hide balance'
         @click.stop='wallet.toggleBalanceVisible()'
+        @keydown.enter.space.prevent.stop='wallet.toggleBalanceVisible()'
       />
     </div>
 
@@ -27,10 +31,10 @@
           </div>
         </div>
         <div class='flex row' style='gap: .2rem;'>
-          <q-btn flat round dense :icon='wallet.balanceVisible ? "visibility" : "visibility_off"' @click='wallet.toggleBalanceVisible()'>
+          <q-btn aria-label='show/hide balance' flat round dense :icon='wallet.balanceVisible ? "visibility" : "visibility_off"' @click='wallet.toggleBalanceVisible()'>
             <q-tooltip>show/hide balance</q-tooltip>
           </q-btn>
-          <q-btn flat round dense icon='refresh' :loading='wallet.loading' @click='refresh'>
+          <q-btn aria-label='refresh' flat round dense icon='refresh' :loading='wallet.loading' @click='refresh'>
             <q-tooltip>refresh</q-tooltip>
           </q-btn>
         </div>
@@ -45,7 +49,7 @@
       <div class='flex column' style='gap: .3rem;'>
         <div class='flex row no-wrap items-center justify-between'>
           <span class='text-bold'>recent activity</span>
-          <q-btn flat dense size='sm' icon='refresh' :loading='wallet.txLoading' @click='loadTx'/>
+          <q-btn flat dense size='sm' icon='refresh' aria-label='refresh activity' :loading='wallet.txLoading' @click='loadTx'/>
         </div>
         <div v-if='!wallet.transactions.length' class='text-secondary' style='font-size: .85rem;'>
           {{ wallet.txLoading ? 'loading…' : 'no transactions yet' }}

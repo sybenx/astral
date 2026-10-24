@@ -25,6 +25,7 @@
               text-color='secondary'
               class='q-pa-xs'
               icon='search'
+              aria-label='search'
               type='submit'
               unelevated
               :disable='!validSearch || searching'
@@ -38,7 +39,7 @@
       <div v-if='searchResults.length' class='q-mt-sm'>
         <div class='flex row justify-between no-wrap items-center'>
           <h2 class='text-subtitle1 text-bold q-my-none'>results</h2>
-          <q-btn flat dense round icon='close' size='sm' @click.stop='clearResults'/>
+          <q-btn aria-label='close' flat dense round icon='close' size='sm' @click.stop='clearResults'/>
         </div>
         <q-list class='q-pt-xs q-pl-sm' style='overflow-y: auto; max-height: 40vh;'>
           <BaseUserCard v-for='pubkey in searchResults' :key='pubkey + "_result"' :pubkey='pubkey'/>
@@ -50,7 +51,7 @@
       <div v-if='domainMode' class='q-mt-sm'>
         <div class='flex row justify-between no-wrap'>
           <h2 class='text-h6 text-bold q-my-none'>{{ domain }} {{ $t('users') }}</h2>
-          <q-btn icon='close' flat round dense size='sm' @click.stop='domainMode = false'/>
+          <q-btn aria-label='close' icon='close' flat round dense size='sm' @click.stop='domainMode = false'/>
         </div>
         <div v-if='domainDefaultPubkey'>
           <h2 class='text-caption text-bold q-my-none'>{{ $t('nip05Maintainer') }}</h2>
@@ -68,10 +69,10 @@
       <div class='flex row justify-between no-wrap items-center q-px-sm q-pb-xs'>
         <h2 class='text-h5 text-bold q-my-none'>{{ $t('follows') }}</h2>
         <div>
-          <q-btn v-if='!reordering' flat icon='reorder' size='sm' @click.stop='reorderFollows'>
+          <q-btn :aria-label="$t('reorderFollows')" v-if='!reordering' flat icon='reorder' size='sm' @click.stop='reorderFollows'>
             <q-tooltip>{{ $t('reorderFollows') }}</q-tooltip>
           </q-btn>
-          <q-btn v-else flat icon='close' size='sm' @click.stop='cancelReorder'>
+          <q-btn :aria-label="$t('cancel')" v-else flat icon='close' size='sm' @click.stop='cancelReorder'>
             <q-tooltip>{{ $t('cancel') }}</q-tooltip>
           </q-btn>
         </div>

@@ -1,5 +1,6 @@
 <template>
     <q-btn
+      aria-label='clear'
       v-if='buttonText'
       unelevated
       clickable

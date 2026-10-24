@@ -271,7 +271,7 @@
           <span>selected relays</span>
           <div class='flex row items-end' id='new-relay-input'>
             <q-input v-model='newRelay' placeholder='add a relay…' input-style='padding: 0; width: 10rem;' @keypress.enter='addNewRelay' dense borderless/>
-            <q-btn icon='add' color='positive' size='sm' flat dense @click.stop='addNewRelay'/>
+            <q-btn icon='add' aria-label='add relay' color='positive' size='sm' flat dense @click.stop='addNewRelay'/>
           </div>
         </div>
         <BaseSelectMultiple>

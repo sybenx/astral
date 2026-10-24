@@ -8,6 +8,7 @@
     :size='buttonSize'
     class='button-relays'
     :label='verbose ? "relays" : ""'
+    :aria-label='verbose ? null : "seen on relays"'
     dense
     align="left"
   >
@@ -17,7 +18,7 @@
   <q-dialog v-model="relayListDialog" @before-hide='$emit("hide")'>
     <q-card>
       <div class='flex row justify-end'>
-        <q-btn icon="close" flat dense v-close-popup/>
+        <q-btn aria-label='close' icon="close" flat dense v-close-popup/>
       </div>
       <div class='overflow-auto'>
         <BaseRelayList v-for='(ev) in events' :key='ev.id' :event="ev" />

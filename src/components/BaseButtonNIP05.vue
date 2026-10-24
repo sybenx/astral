@@ -2,7 +2,7 @@
   <q-dialog v-model="NIP05Dialog" >
     <q-card class='flex column no-wrap' style='max-height: 90%'>
       <div class='flex row justify-end'>
-        <q-btn icon="close" flat dense v-close-popup/>
+        <q-btn aria-label='close' icon="close" flat dense v-close-popup/>
       </div>
       <div class='overflow-auto'>
         <q-card-section>
@@ -20,6 +20,7 @@
     </q-card>
   </q-dialog>
     <q-btn
+      aria-label='NIP05 verified'
       v-if="$store.getters.NIP05Id(pubkey)"
       icon="verified"
       color="accent"

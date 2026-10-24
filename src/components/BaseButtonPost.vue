@@ -2,6 +2,7 @@
   <q-btn
     unelevated
     clickable
+    aria-label='post'
     :size='buttonSize'
     class='button-post'
     dense

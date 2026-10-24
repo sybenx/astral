@@ -15,3 +15,34 @@
   height: 0;
   margin: 0 .4rem;
 }
+
+// Keyboard focus: a ring in the theme's primary colour on anything you can
+// press. :focus-visible keeps it away from mouse and touch; text fields keep
+// Quasar's own focus styling.
+a,
+button,
+[role='button'],
+[role='tab'],
+.q-btn,
+.q-item,
+.q-tab,
+.q-expansion-item__container > .q-item,
+[tabindex]:not([tabindex='-1']) {
+  &:focus-visible {
+    // !important: Quasar puts .no-outline (outline: 0 !important) on buttons
+    outline: 2px solid var(--q-primary) !important;
+    outline-offset: 2px;
+  }
+}
+
+// Respect "reduce motion": no slides, fades or smooth scrolling.
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: .01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: .01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

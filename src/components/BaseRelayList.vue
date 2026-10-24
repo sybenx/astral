@@ -24,6 +24,7 @@
         <div v-if="missingFrom.length"  style='overflow: hidden;'>
           <div v-for="relay in missingFrom" :key="relay" class='relay-item unseen-relay-item hide-scrollbar' clickable>
             <q-btn
+              aria-label='publish to this relay'
               icon='visibility'
               flat
               unelevated

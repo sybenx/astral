@@ -8,6 +8,7 @@
       class='col no-padding flex items-center'
       :class="compactMode ? 'justify-center' : 'justify-end'"
       clickable
+      aria-label='your profile'
       @click='toProfile($store.state.keys.pub)'
     >
       <BaseUserCard
@@ -38,6 +39,7 @@
     <q-item
       clickable
       class='menu-item'
+      :aria-label='$t(item.title)'
       :dense='compactMode'
       :style='compactMode ? "" : "min-height: 2.75rem;"'
       :active="($route.name === item.title || $route.path.split('/')[1] === item.title)"

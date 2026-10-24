@@ -1,6 +1,7 @@
       <!-- :disable="!$store.getters.canEncryptDecrypt" -->
 <template>
     <q-btn
+      aria-label='encrypted message'
       icon="mail_lock"
       unelevated
       clickable

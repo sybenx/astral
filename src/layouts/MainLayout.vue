@@ -40,7 +40,7 @@
         <div v-if='($q.screen.width >= 600) && postEntryOpen' id='post-entry' unelevated class='gt-xs flex column align-self relative-position'>
           <!-- <q-separator color='primary'/> -->
           <!-- <q-btn v-if='!messageMode' icon="close" flat dense @click='togglePostEntry' class='self-end' style='position: absolute; top: 0; right: 0; z-index: 1;'/> -->
-          <q-btn icon="close" flat dense @click='togglePostEntry' class='self-end' style='position: absolute; top: 0; right: 0; z-index: 1;'/>
+          <q-btn aria-label='close' icon="close" flat dense @click='togglePostEntry' class='self-end' style='position: absolute; top: 0; right: 0; z-index: 1;'/>
             <!-- :message-mode='messageMode' -->
           <BasePostEntry
             :event='replyEvent'
@@ -90,6 +90,7 @@
     </q-page-sticky>
     <q-page-sticky position="top-right" :offset="fabPos" id='navagation-buttons'>
       <q-fab
+        ref='navFab'
         direction="left"
         color="accent"
         class='no-margin no-padding z-top'
@@ -112,6 +113,7 @@
           <q-icon name='drag_indicator'/>
         </template>
         <q-btn
+          aria-label='forward'
           @click.stop="forward"
           color="primary"
           unelevated
@@ -123,6 +125,7 @@
           <q-tooltip>forward</q-tooltip>
         </q-btn>
         <q-btn
+          aria-label='scroll to top'
           @click.stop="scrollToTop"
           color="primary"
           unelevated
@@ -134,6 +137,7 @@
           <q-tooltip>scroll to top</q-tooltip>
         </q-btn>
         <q-btn
+          aria-label='back'
           @click.stop="back"
           color="primary"
           unelevated
@@ -155,6 +159,8 @@
 import { defineComponent} from 'vue'
 import { scroll, useQuasar } from 'quasar'
 const { getVerticalScrollPosition, setVerticalScrollPosition} = scroll
+// smooth scrolling, unless the system asks for reduced motion
+const scrollMs = () => (window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ? 0 : 500)
 import TheUserMenu from 'components/TheUserMenu.vue'
 import TheSearchMenu from 'components/TheSearchMenu.vue'
 import TheKeyInitializationDialog from 'components/TheKeyInitializationDialog.vue'
@@ -218,6 +224,15 @@ export default defineComponent({
   },
 
   mounted() {
+    // QFab gives its attributes to the wrapper, so name the toggle button
+    // itself, once the layout has rendered the sticky container
+    const labelFab = (tries = 10) => {
+      const btn = this.$refs.navFab?.$el?.querySelector?.('.q-btn')
+      if (btn) btn.setAttribute('aria-label', 'navigation buttons')
+      else if (tries) setTimeout(() => labelFab(tries - 1), 200)
+    }
+    this.$nextTick(() => labelFab())
+
     // coordinate closing/opening of db if multiple astral windows
     // this.broadcastChannel.onmessage = (event) => {
     //   let {type} = event.data
@@ -272,12 +287,12 @@ export default defineComponent({
     },
 
     restoreScrollPos(to, from) {
-      if (this.middlePagePos[to.fullPath]) setVerticalScrollPosition(this.scrollingContainer, this.middlePagePos[to.fullPath], 500)
+      if (this.middlePagePos[to.fullPath]) setVerticalScrollPosition(this.scrollingContainer, this.middlePagePos[to.fullPath], scrollMs())
       else this.scrollToTop()
     },
 
     scrollToTop() {
-      setVerticalScrollPosition(this.scrollingContainer, 0, 500)
+      setVerticalScrollPosition(this.scrollingContainer, 0, scrollMs())
     },
 
     back() {
@@ -299,7 +314,7 @@ export default defineComponent({
 
     scrollToRect(rect) {
       let offset = Math.max(rect.top, 0)
-      setVerticalScrollPosition(this.scrollingContainer, offset, 500)
+      setVerticalScrollPosition(this.scrollingContainer, offset, scrollMs())
     },
 
     async launch() {

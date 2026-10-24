@@ -2,7 +2,7 @@
   <q-form @submit='addLink({ url, name })' class='no-padding flex row items-center no-wrap justify-between'>
     <q-input v-model='url' type='url' label='url' dense outlined autofocus color='accent' class='no-padding col-9'/>
     <q-input v-model='name' label='url name' :disable='url.length === 0' outlined dense color='accent' class='no-padding col-2'/>
-    <q-btn icon="add" type="submit" :disable='!validUrl' outline round color="accent" size='sm' class='no-padding' :class='validUrl ? "pulse-button" : ""'/>
+    <q-btn aria-label='add link' icon="add" type="submit" :disable='!validUrl' outline round color="accent" size='sm' class='no-padding' :class='validUrl ? "pulse-button" : ""'/>
   </q-form>
 </template>
 

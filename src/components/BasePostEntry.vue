@@ -20,7 +20,7 @@
       class='embeded-message q-px-sm q-py-xs'
     >
       <div class='relative-position'>
-        <q-btn icon="close" flat dense @click.stop='$emit("clear-event")' size='xs' class='absolute-top-right z-top'/>
+        <q-btn aria-label='close' icon="close" flat dense @click.stop='$emit("clear-event")' size='xs' class='absolute-top-right z-top'/>
       </div>
       <BaseMessage
         v-if='event'
@@ -90,7 +90,7 @@
             <strong>{{ linkName(link) }}</strong>
             <span>{{ link.url }}</span>
             </div>
-            <q-btn icon="remove_circle" clickable @click.stop='removeLink(index)' flat color="negative" size='xs' class='no-padding'/>
+            <q-btn aria-label='remove link' icon="remove_circle" clickable @click.stop='removeLink(index)' flat color="negative" size='xs' class='no-padding'/>
           </li>
         </ul>
       </div>
@@ -101,6 +101,7 @@
       <div v-for='url in draftImages' :key='url' class='draft-thumb'>
         <img :src='url' loading='lazy'/>
         <q-btn
+          aria-label='close'
           class='draft-thumb-remove'
           icon='close'
           size='xs'
@@ -136,6 +137,7 @@
           @change='onImageSelected'
         />
         <q-btn
+          aria-label='upload image'
           v-show='replyMode !== "repost"'
           unelevated
           class='no-padding button-image'
@@ -164,6 +166,7 @@
         >
           <template #emoji>
             <q-btn
+              aria-label='add emoji'
               unelevated
               class='no-padding button-emoji'
               dense
@@ -259,6 +262,7 @@
       </div>
       <q-btn-group class='flex items-center' unelevated>
         <q-btn
+          aria-label='cancel'
           v-if='toolSelected'
           icon="close"
           unelevated
@@ -350,6 +354,7 @@
           unelevated
           color="primary"
           type="submit"
+          aria-label='post'
           @click.stop='handleSendClick'
           :disable='!textValid() || countdown.active'
         >

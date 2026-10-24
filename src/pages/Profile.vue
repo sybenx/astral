@@ -48,6 +48,7 @@
                 text-color='secondary'
                 class='q-pa-xs'
                 icon="search"
+                aria-label='search'
                 type="submit"
                 unelevated
                 :disable='searching'

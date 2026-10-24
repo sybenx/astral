@@ -8,6 +8,7 @@
       :size='buttonSize'
       class='button-info'
       :label='verbose ? "info" : ""'
+      :aria-label='verbose ? null : "metadata"'
       dense
       align="left"
       v-close-popup
@@ -18,7 +19,7 @@
   <q-dialog v-model="metadataDialog" @before-hide='$emit("hide")'>
     <q-card class='flex column no-wrap' style='max-height: 90%'>
       <div class='flex row justify-end'>
-        <q-btn icon="close" flat dense v-close-popup/>
+        <q-btn aria-label='close' icon="close" flat dense v-close-popup/>
       </div>
       <div class='overflow-auto'>
         <BaseRawEvent v-for='(ev) in events' :key='ev.id' :event="ev" />

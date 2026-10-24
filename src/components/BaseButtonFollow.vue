@@ -1,5 +1,6 @@
 <template>
     <q-btn
+      :aria-label="isFollowing ? 'unfollow' : 'follow'"
       :class='buttonClass + (isFollowing ? "button-unfollow" : "button-follow")'
       :size='buttonSize'
       unelevated

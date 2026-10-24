@@ -77,6 +77,7 @@
         <q-item-label v-if='clientName' class='q-pr-sm gt-xs text-secondary ellipsis' style='opacity: .55; font-size: 75%; max-width: 8rem;'>via {{ clientName }}</q-item-label>
         <q-item-label class='q-pr-xs' style='opacity: .8; font-size: 90%;'>{{ niceDate(event.created_at) }}</q-item-label>
         <q-fab
+          ref='postMenu'
           color='secondary'
           icon='more_vert'
           direction='down'
@@ -201,7 +202,7 @@
               @click.stop
             >
               <!-- reply -->
-              <q-tab name='reply' class='no-padding'>
+              <q-tab name='reply' class='no-padding' aria-label='reply'>
                 <div class='flex row no-wrap items-center' style='gap: .3rem;'>
                   <q-icon name='chat_bubble_outline' :size='iconSize' class='flip-horizontal'/>
                   <span v-if='replyCount' class='action-count'>{{ replyCount }}</span>
@@ -210,7 +211,7 @@
               </q-tab>
 
               <!-- like / reaction -->
-              <q-tab class='no-padding' @click.stop='sendReaction'>
+              <q-tab class='no-padding' :aria-label='hasReacted ? "reacted" : "react"' @click.stop='sendReaction'>
                 <div class='flex row no-wrap items-center' style='gap: .3rem;'>
                   <q-icon
                     :name='hasReacted ? "favorite" : "favorite_border"'
@@ -223,7 +224,7 @@
               </q-tab>
 
               <!-- repost — tap opens popup: repost | quote -->
-              <q-tab class='no-padding' @click.stop>
+              <q-tab aria-label='repost' class='no-padding' @click.stop>
                 <q-icon name='repeat' :size='iconSize'/>
                 <q-tooltip>repost</q-tooltip>
                 <q-menu auto-close>
@@ -241,7 +242,7 @@
               </q-tab>
 
               <!-- zap -->
-              <q-tab class='no-padding' @click.stop='$store.getters.profileLud06(event.pubkey) ? showZapDialog = true : null'>
+              <q-tab class='no-padding' aria-label='tip' @click.stop='$store.getters.profileLud06(event.pubkey) ? showZapDialog = true : null'>
                 <div class='flex row no-wrap items-center' style='gap: .3rem;'>
                   <q-icon
                     name='bolt'
@@ -262,13 +263,13 @@
               </q-tab>
 
               <!-- embed / link — at the end -->
-              <q-tab name='embed' class='no-padding'>
+              <q-tab aria-label='copy event ID' name='embed' class='no-padding'>
                 <q-icon name='link' :size='iconSize'/>
                 <q-tooltip>copy event ID</q-tooltip>
               </q-tab>
 
               <!-- cancel active panel -->
-              <q-tab v-if='replyMode && replyMode !== "tip"' class='no-padding' @click.stop='replyMode = null'>
+              <q-tab aria-label='cancel' v-if='replyMode && replyMode !== "tip"' class='no-padding' @click.stop='replyMode = null'>
                 <q-icon name='close' :size='iconSize' color='accent'/>
                 <q-tooltip>cancel</q-tooltip>
               </q-tab>
@@ -487,6 +488,8 @@ export default defineComponent({
   },
 
   mounted() {
+    // QFab hands only its props to the ⋮ button, so name that button directly
+    this.$refs.postMenu?.$el?.querySelector?.('.q-btn')?.setAttribute('aria-label', 'post menu')
     if (!this.isEmbeded && (this.isQuote || this.isRepost)) {
       if (!Array.isArray(this.reposts)) this.reposts = []
       this.processTaggedEvents(this.mentionEvents, this.reposts)
