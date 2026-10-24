@@ -28,6 +28,9 @@
               <BaseQr :key='code' :code='code'/>
             </div>
             <span class='hint text-center'>{{ status }}</span>
+            <!-- Cosign refuses some moves without telling the page (a phone that already
+                 holds a key), so after a while say what may have happened. -->
+            <span v-if='slow' class='hint text-center'>Nothing yet? If Cosign says this phone already holds a key, it can’t take another one yet. You can cancel here; your account wasn’t changed.</span>
             <q-btn
               v-if='onAndroid && openLink'
               flat dense no-caps size='sm' class='self-center'
@@ -78,6 +81,26 @@ import { getAuthManager } from '../nostr/authManager'
 import { countVisit, shouldSuggestProtecting, snoozeProtecting } from '../utils/accountCare'
 import BaseQr from 'components/BaseQr.vue'
 
+const SLOW_AFTER_MS = 45_000
+
+// How a move ended, in words. QRST ends a session with an outcome
+// (import.ts reports it as "Not moved (<outcome>)."); anything else is shown as is.
+const OUTCOMES = {
+  'peer-aborted': 'Cosign cancelled the move.',
+  declined: 'The move was cancelled.',
+  expired: 'The code expired before your phone answered.',
+  'attempts-exhausted': 'Too many wrong digits, so the move stopped.',
+  'blocked-peer': 'That code was blocked after earlier failed tries. Start again.',
+  'second-responder': 'Two phones answered the code, so nothing was sent. Start again.',
+  'bad-payload': 'Cosign couldn’t read what was sent.'
+}
+
+function moveError(err) {
+  const msg = err?.message || ''
+  const outcome = msg.match(/^Not moved \(([^)]+)\)/)?.[1]
+  return `${OUTCOMES[outcome] || msg || 'That didn’t work.'} Your account wasn’t changed.`
+}
+
 // Shown to accounts whose key lives only in this browser (keys.priv), from the
 // second visit or third note on. "later" snoozes it; it never goes away for good.
 // "protect it" moves the key into Cosign: the phone and Cosign's servers hold it
@@ -102,6 +125,8 @@ export default defineComponent({
       triesLeft: 3,
       submitDigits: null,
       move: null,
+      slow: false,
+      slowTimer: null,
       error: ''
     }
   },
@@ -123,6 +148,7 @@ export default defineComponent({
 
   beforeUnmount() {
     if (this.move) this.move.cancel()
+    clearTimeout(this.slowTimer)
   },
 
   methods: {
@@ -144,9 +170,16 @@ export default defineComponent({
       // markRaw: kept as is, so `this.move === move` tells a live move from a cancelled one.
       const move = markRaw(auth.moveToPhone(priv, pub, {
         status: (text) => { this.status = text },
-        code: (uri) => { this.code = uri },
+        code: (uri) => {
+          this.code = uri
+          clearTimeout(this.slowTimer)
+          this.slow = false
+          this.slowTimer = setTimeout(() => { this.slow = true }, SLOW_AFTER_MS)
+        },
         open: (link) => { this.openLink = link },
         enterCode: (left, submit) => {
+          clearTimeout(this.slowTimer)
+          this.slow = false
           this.triesLeft = left
           this.submitDigits = submit
           this.digits = ''
@@ -165,8 +198,9 @@ export default defineComponent({
         (err) => {
           if (this.move !== move) return // cancelled
           this.move = null
+          clearTimeout(this.slowTimer)
           this.stage = 'intro'
-          this.error = err?.message === 'cancelled' ? '' : `${err?.message || 'That didn’t work.'} Your account wasn’t changed.`
+          this.error = err?.message === 'cancelled' ? '' : moveError(err)
         }
       )
     },
@@ -183,6 +217,7 @@ export default defineComponent({
     cancelMove() {
       if (this.move) this.move.cancel()
       this.move = null
+      clearTimeout(this.slowTimer)
       this.stage = 'intro'
     },
 
