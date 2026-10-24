@@ -36,7 +36,9 @@ export default function () {
   let { timestamps, preferences } = config || {}
   let { lastUserMainSync = 0, lastFeedLoad = 0 } = timestamps || {}
   let { color, font = 'Roboto', lightningTips } = preferences || {}
-  let { primary = '#ffffff', secondary = '#aaaaaa', accent = '#777777', background = '#1f1f1f' } = color || {}
+  let { primary = '#ffffff', secondary = '#aaaaaa', accent = '#888888', background = '#1f1f1f' } = color || {}
+  // mono's accent was #777777 (3.7:1 on #1f1f1f); #888888 reaches 4.5:1 for text
+  if (primary === '#ffffff' && secondary === '#aaaaaa' && accent === '#777777') accent = '#888888'
   let { enabled = true, lastMode = 'copy', lastWallet = null, presets = [10, 100, 1000], oneClick = { enabled: false, amount: 10 } } = lightningTips || {}
   config = {
     timestamps: {

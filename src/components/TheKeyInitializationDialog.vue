@@ -2,8 +2,8 @@
   <!-- <q-dialog persistent> -->
   <!-- <div v-if="showKeyInitialization"> -->
     <q-card class='welcome-card relative-position full-width' :class='{ "welcome-card--full": $q.screen.lt.sm }'>
-      <q-btn icon='close' size='md' flat round class='close-button absolute-top-right z-top' aria-label='Close and look around' @click='$emit("look-around")'/>
-      <h1 class="text-h6 q-pr-xl">Welcome to Astral</h1>
+      <q-btn icon='close' size='md' flat round class='close-button absolute-top-right z-top' aria-label='close and look around' @click='$emit("look-around")'/>
+      <h1 class="text-h6 q-pr-xl">welcome to astral</h1>
       <q-expansion-item
         expand-icon='help'
         expanded-icon='expand_less'
@@ -11,11 +11,11 @@
         header-class='items-center q-px-sm'
       >
         <template #header>
-          <span class='full-width'>New to Nostr? Learn more</span>
+          <span class='full-width'>new to Nostr? learn more</span>
         </template>
         <BaseInformation/>
-        <span style='padding: .2rem 0 0 .2rem;'>After you sign in, you can find this again in the
-        <strong>FAQ</strong> at the bottom of Settings.</span>
+        <span style='padding: .2rem 0 0 .2rem;'>after you sign in, you can find this again in the
+        <strong>faq</strong> at the bottom of settings.</span>
       </q-expansion-item>
 
       <div class='sign-in q-mt-md flex column items-center'>
@@ -27,7 +27,7 @@
           color='primary'
           text-color='dark'
           class='sign-in-button full-width'
-          label='Sign in'
+          label='sign in'
           @click='signIn'
         />
         <q-btn
@@ -35,12 +35,12 @@
           flat
           no-caps
           class='tap-target full-width'
-          label='New here? Create an account'
+          label='new here? create an account'
           @click='startCreate'
         />
 
         <q-form v-else-if='stage === "create"' class='create-account full-width flex column' @submit.prevent='createAccount'>
-          <span class='text-subtitle1'>Create your account</span>
+          <span class='text-subtitle1'>create your account</span>
           <div class='flex row no-wrap items-center' style='gap: .8rem;'>
             <label class='avatar-pick flex flex-center' for='new-account-picture' title='add a picture (optional)'>
               <img v-if='picturePreview' :src='picturePreview' alt='your picture'/>
@@ -55,10 +55,10 @@
               outlined
               autofocus
               maxlength='50'
-              label='Your name'
+              label='your name'
             />
           </div>
-          <span class='hint text-left'>Add a picture if you like. You can change both later in Settings.</span>
+          <span class='hint text-left'>add a picture if you like. you can change both later in settings.</span>
           <q-btn
             type='submit'
             unelevated
@@ -66,7 +66,7 @@
             color='primary'
             text-color='dark'
             class='sign-in-button full-width'
-            label='Create account'
+            label='create account'
             :loading='creating'
             :disable='!newName.trim()'
           />
@@ -76,24 +76,24 @@
         <template v-else-if='stage === "extension"'>
           <div class='flex row items-center' style='gap: .5rem;'>
             <q-spinner-dots color='primary' size='sm'/>
-            <span>Check your browser extension…</span>
+            <span>check your browser extension…</span>
           </div>
         </template>
 
         <template v-else-if='stage === "phone"'>
           <span v-if='!code' class='flex row items-center' style='gap: .5rem;'>
-            <q-spinner-dots color='primary' size='sm'/>{{ status || 'Getting a code ready…' }}
+            <q-spinner-dots color='primary' size='sm'/>{{ lowerFirst(status) || 'getting a code ready…' }}
           </span>
           <template v-else-if='onAndroid && !showCode'>
             <!-- A real link the user taps, so Android hands it to Cosign (App Links). -->
-            <a :href='code' class='sign-in-button sign-in-link full-width'>Open your signer app</a>
-            <span class='hint'>Opens Cosign or your signer app. Approve there, then come back here.</span>
+            <a :href='code' class='sign-in-button sign-in-link full-width'>open your signer app</a>
+            <span class='hint'>opens Cosign or your signer app. approve there, then come back here.</span>
           </template>
           <template v-else>
             <div class='qr-frame bg-white'>
               <BaseQr :key='code' :code='code'/>
             </div>
-            <span class='hint'>{{ status }}</span>
+            <span class='hint'>{{ lowerFirst(status) }}</span>
             <span class='hint'>Amber and other signer apps can scan it too.</span>
           </template>
         </template>
@@ -101,49 +101,49 @@
         <template v-else-if='stage === "confirm"'>
           <span class='text-center'>{{ confirmText }}</span>
           <div class='flex row no-wrap full-width' style='gap: .4rem;'>
-            <q-btn unelevated no-caps color='primary' text-color='dark' class='col tap-target' label='Sign in' @click='confirmAnswer(true)'/>
-            <q-btn outline no-caps color='primary' class='col tap-target' label='Cancel' @click='confirmAnswer(false)'/>
+            <q-btn unelevated no-caps color='primary' text-color='dark' class='col tap-target' label='sign in' @click='confirmAnswer(true)'/>
+            <q-btn outline no-caps color='primary' class='col tap-target' label='cancel' @click='confirmAnswer(false)'/>
           </div>
         </template>
 
         <template v-else-if='stage === "signing-in"'>
           <div class='flex row items-center' style='gap: .5rem;'>
             <q-spinner-dots color='primary' size='sm'/>
-            <span>{{ status || 'Signing in…' }}</span>
+            <span>{{ lowerFirst(status) || 'signing in…' }}</span>
           </div>
         </template>
 
-        <span v-if='signerError' class='text-negative text-center' style='font-size: .85rem;'>{{ signerError }}</span>
+        <span v-if='signerError' class='text-negative text-center' style='font-size: .85rem;'>{{ lowerFirst(signerError) }}</span>
 
         <div class='sign-in-links flex row wrap justify-center'>
           <q-btn
             v-if='stage === "phone" && code && onAndroid'
             flat no-caps
             class='tap-target'
-            :label='showCode ? "Open the app instead" : "Show a code instead"'
+            :label='showCode ? "open the app instead" : "show a code instead"'
             @click='showCode = !showCode'
           />
           <q-btn
             v-if='stage === "extension" || (stage === "idle" && signerError && hasExtension)'
             flat no-caps
             class='tap-target'
-            label='Use your phone instead'
+            label='use your phone instead'
             @click='startPhone'
           />
-          <q-btn v-if='stage === "phone" && code' flat no-caps class='tap-target' icon='content_copy' label='Copy link' @click='copyCode'/>
+          <q-btn v-if='stage === "phone" && code' flat no-caps class='tap-target' icon='content_copy' label='copy link' @click='copyCode'/>
           <q-btn v-if='stage === "create" && !creating' flat no-caps class='tap-target' label='I already have an account' @click='stage = "idle"'/>
-          <q-btn v-else-if='stage !== "idle" && stage !== "create"' flat no-caps class='tap-target' label='Cancel' @click='cancelSignIn'/>
+          <q-btn v-else-if='stage !== "idle" && stage !== "create"' flat no-caps class='tap-target' label='cancel' @click='cancelSignIn'/>
         </div>
       </div>
 
       <q-expansion-item
         class='q-mt-md'
-        label='Other ways to sign in'
+        label='other ways to sign in'
         header-class='other-ways text-secondary q-px-sm'
         @before-show='checkExtension'
       >
       <div class='q-mt-sm flex column' style='gap: .4rem;'>
-        <h2 class="text-subtitle2 q-pr-md">Paste a bunker:// link</h2>
+        <h2 class="text-subtitle2 q-pr-md">paste a bunker:// link</h2>
         <div class='flex row no-wrap items-center' style='gap: .4rem;'>
           <q-input
             v-model='bunkerString'
@@ -157,16 +157,16 @@
             no-caps
             color='positive'
             class='tap-target'
-            label='Connect'
+            label='connect'
             :loading='bunkerConnecting'
             :disable='!bunkerString'
             @click='loginWithBunker'
           />
         </div>
-        <span class='text-secondary' style='font-size: .75rem;'>From Amber, Clave, nsec.app, or another remote signer</span>
+        <span class='text-secondary' style='font-size: .75rem;'>from Amber, Clave, nsec.app, or another remote signer</span>
       </div>
 
-      <h2 class="text-subtitle2 q-pr-md">Or enter a key directly</h2>
+      <h2 class="text-subtitle2 q-pr-md">or enter a key directly</h2>
       <q-form @submit="proceed">
         <q-card-section class="key-entry no-padding flex column">
           <q-btn-group spread unelevated>
@@ -174,7 +174,7 @@
               no-caps
               class="tap-target"
               color="primary"
-              label="Public key"
+              label="public key"
               :outline="!watchOnly"
               :text-color="!watchOnly ? '' : 'dark'"
               value="true"
@@ -185,7 +185,7 @@
               no-caps
               class="tap-target"
               color="primary"
-              label="Private key"
+              label="private key"
               :outline="watchOnly"
               :text-color="watchOnly ? '' : 'dark'"
               value="false"
@@ -197,21 +197,21 @@
             v-model="key"
             ref="keyInput"
             outlined
-            :label="watchOnly ? 'Enter public key' : 'Enter private key'"
+            :label="watchOnly ? 'enter public key' : 'enter private key'"
             dense
           />
           <!-- Below the field rather than in its bottom slot, which fits only one line. -->
           <span class="key-hint">
             <template v-if="!key && watchOnly">
-              With a public key, you will need to enter your private key
-              each time you post (by hand or with a Nostr browser extension).
+              with a public key, you will need to enter your private key
+              each time you post (by hand or with a Nostr browser extension)
             </template>
             <template v-else-if="!key">
-              With a private key, Astral signs with it automatically
-              each time you post.
+              with a private key, astral signs with it automatically
+              each time you post
             </template>
-            <template v-else-if="!isKeyValid">Not a valid key</template>
-            <template v-else>Key is valid</template>
+            <template v-else-if="!isKeyValid">not a valid key</template>
+            <template v-else>key is valid</template>
           </span>
           <!-- Stacked on phones; side by side once there's room. -->
           <div v-if="!isKeyValid" class="key-actions flex" :class="$q.screen.lt.sm ? 'column' : 'row no-wrap'">
@@ -220,7 +220,7 @@
               no-caps
               color="primary"
               class="tap-target col"
-              label="Generate keys"
+              label="generate keys"
               @click="generate"
             />
             <q-btn
@@ -229,7 +229,7 @@
               no-caps
               color="primary"
               class="tap-target col"
-              label="Use public key from extension"
+              label="use public key from extension"
               @click="getFromExtension"
             />
           </div>
@@ -239,7 +239,7 @@
             no-caps
             color="positive"
             class="tap-target full-width"
-            label="Sign in with this key"
+            label="sign in with this key"
             icon-right="login"
             style='color: var(--q-background) !important;'
             :disable="!isKeyValid"
@@ -258,19 +258,19 @@
       >
         <template #header>
           <div class='full-width flex row no-wrap items-center'>
-            <h2 class="text-subtitle2 q-pr-md">Bootstrap relays (optional)</h2>
+            <h2 class="text-subtitle2 q-pr-md">bootstrap relays (optional)</h2>
             <q-icon name='info'>
               <q-tooltip>
-              Astral asks the selected relays below for your profile, follows, and relay list.
-              Include the relays you publish to, or Astral may not find your data.
+              astral asks the selected relays below for your profile, follows, and relay list.
+              include the relays you publish to, or astral may not find your data.
               </q-tooltip>
             </q-icon>
           </div>
         </template>
         <div class='flex row justify-between no-wrap items-end' >
-          <span>Selected relays</span>
+          <span>selected relays</span>
           <div class='flex row items-end' id='new-relay-input'>
-            <q-input v-model='newRelay' placeholder='Add a relay…' input-style='padding: 0; width: 10rem;' @keypress.enter='addNewRelay' dense borderless/>
+            <q-input v-model='newRelay' placeholder='add a relay…' input-style='padding: 0; width: 10rem;' @keypress.enter='addNewRelay' dense borderless/>
             <q-btn icon='add' color='positive' size='sm' flat dense @click.stop='addNewRelay'/>
           </div>
         </div>
@@ -324,6 +324,7 @@ import { uploadImage } from '../nostr/mediaUpload'
 import { markAccountCreated } from '../utils/accountCare'
 import { getAuthManager } from '../nostr/authManager'
 import { copyToClipboard, Notify } from 'quasar'
+import { lowerFirst } from '../utils/helpers'
 // import { decode } from 'bech32-buffer'
 import BaseSelectMultiple from 'components/BaseSelectMultiple.vue'
 import BaseInformation from 'components/BaseInformation.vue'
@@ -467,13 +468,15 @@ export default defineComponent({
   },
 
   methods: {
+    lowerFirst,
+
     checkExtension() {
       this.hasExtension = !!window.nostr
     },
 
     async getFromExtension() {
       if (!window.nostr) {
-        this.$q.notify({ message: 'No browser extension found. Install Alby or nos2x.', color: 'warning' })
+        this.$q.notify({ message: 'no browser extension found. install Alby or nos2x.', color: 'warning' })
         return
       }
       try {
@@ -552,7 +555,7 @@ export default defineComponent({
     async loginWithExtension() {
       const auth = getAuthManager()
       if (!auth) {
-        this.signerError = 'Signer not ready. Please reload.'
+        this.signerError = 'signer not ready, please reload'
         return
       }
       this.stage = 'extension'
@@ -563,8 +566,8 @@ export default defineComponent({
         if (this.stage !== 'extension') return // the user switched to the phone meanwhile
         this.stage = 'idle'
         this.signerError = /not now|denied|reject|cancel|declin/i.test(err?.message || '')
-          ? 'Not signed in. Tap sign in to try again, or use your phone instead.'
-          : (err?.message || 'Could not connect to your browser extension.')
+          ? 'not signed in. tap sign in to try again, or use your phone instead.'
+          : (err?.message || 'could not connect to your browser extension')
       }
     },
 
@@ -573,7 +576,7 @@ export default defineComponent({
     startPhone() {
       const auth = getAuthManager()
       if (!auth) {
-        this.signerError = 'Signer not ready. Please reload.'
+        this.signerError = 'signer not ready, please reload'
         return
       }
       if (this.pairing) this.pairing.cancel()
@@ -599,7 +602,7 @@ export default defineComponent({
           if (this.pairing !== pairing) return // cancelled or replaced
           this.pairing = null
           this.stage = 'idle'
-          this.signerError = err?.message || 'Not signed in.'
+          this.signerError = err?.message || 'not signed in'
         }
       )
     },
@@ -628,7 +631,7 @@ export default defineComponent({
       const file = e.target.files?.[0]
       if (!file) return
       if (!file.type.startsWith('image/')) {
-        this.signerError = 'That file isn’t a picture.'
+        this.signerError = 'that file isn’t a picture'
         return
       }
       if (this.picturePreview) URL.revokeObjectURL(this.picturePreview)
@@ -649,14 +652,14 @@ export default defineComponent({
       const metadata = { name, display_name: name }
       try {
         if (this.pictureFile) {
-          this.status = 'Uploading your picture…'
+          this.status = 'uploading your picture…'
           try {
             metadata.picture = await uploadImage({ state: { keys: { priv, pub } } }, this.pictureFile)
           } catch (err) {
-            Notify.create({ message: 'Couldn’t upload your picture. You can add one later in settings.', color: 'warning' })
+            Notify.create({ message: 'couldn’t upload your picture. you can add one later in settings.', color: 'warning' })
           }
         }
-        this.status = 'Setting up your account…'
+        this.status = 'setting up your account…'
         this.$store.commit('setDefaultRelays', this.selectedRelays)
         this.$store.dispatch('initKeys', { priv })
         markAccountCreated()
@@ -664,7 +667,7 @@ export default defineComponent({
         this.$store.dispatch('launch')
         this.$router.push('/')
       } catch (err) {
-        this.signerError = err?.message || 'Couldn’t create your account.'
+        this.signerError = err?.message || 'couldn’t create your account'
       } finally {
         this.creating = false
       }
@@ -672,21 +675,21 @@ export default defineComponent({
 
     copyCode() {
       if (!this.code) return
-      copyToClipboard(this.code).then(() => Notify.create({ message: 'Link copied' }))
+      copyToClipboard(this.code).then(() => Notify.create({ message: 'link copied' }))
     },
 
     async loginWithBunker() {
       this.signerError = ''
       const auth = getAuthManager()
       if (!auth) {
-        this.signerError = 'Signer not ready. Please reload.'
+        this.signerError = 'signer not ready, please reload'
         return
       }
       this.bunkerConnecting = true
       try {
         await auth.authenticateWithNIP46(this.bunkerString.trim())
       } catch (err) {
-        this.signerError = err?.message || 'Could not connect to the remote signer.'
+        this.signerError = err?.message || 'could not connect to the remote signer'
       } finally {
         this.bunkerConnecting = false
       }

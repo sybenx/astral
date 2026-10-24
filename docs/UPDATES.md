@@ -1,6 +1,7 @@
 # Updates worth making
 
-Planning only; nothing here is built yet. Read with [FEEL.md](FEEL.md). Each item has a tag:
+Read with [FEEL.md](FEEL.md). **Decided 2026-10-24:** the user approved #1, #2, #9–#14, #20 (lowercase),
+and #21. #23 (Spark) is declined. Everything else waits until asked. Each item has a tag:
 
 - **invisible**: nobody should notice, except that it's faster or breaks less.
 - **feel, slightly**: something small shows up or looks a little different.
@@ -55,7 +56,7 @@ The npm registry wasn't reachable from here, so I haven't compared against the l
 | 20 | **Lowercase or sentence case:** pick one and apply it everywhere. Today the sign-in dialog is sentence case and the rest is lowercase. | S | See FEEL.md "Voice". |
 | 21 | Replies shown as threads in the feed again (the original fetched the root and showed the reply under it) | M | Brings back the original; adds fetches per reply. |
 | 22 | NIP-17 private DMs (#3). NIP-44 already exists in `encryptionService.js` | L | Messages get private metadata. Old NIP-04 DMs should stay readable. Needs NIP-44 from each signer, Cosign included. |
-| 23 | Spark wallet (DEV_NOTES "Next" #1; big WASM) | L | Turns Astral partly into a wallet app. It's a product decision more than an update. |
+| 23 | ~~Spark wallet~~ (DEV_NOTES "Next" #1; big WASM) | L | **Declined** by the user on 2026-10-24: Astral stays a client, not a wallet app. |
 
 ## Suggested order
 

@@ -78,7 +78,7 @@ export default {
         mono: {
           primary: '#ffffff',
           secondary: '#aaaaaa',
-          accent: '#777777',
+          accent: '#888888',
           background: '#1f1f1f'
         },
         'zen lisa frank': {

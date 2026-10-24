@@ -137,3 +137,12 @@ export async function getEventIdTagWithRelay(eventId, ...appendedValues) {
 
   return ['e', eventId, '', ...appendedValues]
 }
+
+// Astral's voice is lowercase. Messages from shared code (Cosign, signers)
+// arrive capitalised, so lowercase their first letter for display, leaving
+// names like Cosign or Nostr alone.
+const KEEP_CAPITAL = /^(Cosign|Nostr|Amber|Clave|Alby|I)\b/
+export function lowerFirst(text) {
+  if (!text || KEEP_CAPITAL.test(text)) return text || ''
+  return text.charAt(0).toLowerCase() + text.slice(1)
+}

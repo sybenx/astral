@@ -1,7 +1,7 @@
 <template>
   <div v-if='visible' class='protect-banner flex row items-center'>
     <q-icon name='shield' size='sm' class='flex-none'/>
-    <span class='col'>Your account only lives in this browser. If you clear it or lose this device, the account is gone.</span>
+    <span class='col'>your account only lives in this browser. if you clear it or lose this device, the account is gone.</span>
     <div class='flex row no-wrap' style='gap: .3rem;'>
       <q-btn unelevated dense no-caps color='primary' text-color='dark' class='q-px-sm' label='protect it' @click='open = true'/>
       <q-btn flat dense no-caps label='later' @click='later'/>
@@ -14,23 +14,23 @@
         <span class='text-h6'>protect your account</span>
 
         <template v-if='stage === "intro"'>
-          <p>Move your account to your phone with Cosign. Your phone and Cosign’s servers hold it together, so it stays yours even if this browser is lost, and this browser no longer holds it.</p>
-          <p class='hint'>You’ll need Cosign on your phone. <a href='https://cosign.aaro.cc/' target='_blank' rel='noopener noreferrer'>Get Cosign</a></p>
+          <p>move your account to your phone with Cosign. your phone and Cosign’s servers hold it together, so it stays yours even if this browser is lost, and this browser no longer holds it.</p>
+          <p class='hint'>you’ll need Cosign on your phone. <a href='https://cosign.aaro.cc/' target='_blank' rel='noopener noreferrer'>get Cosign</a></p>
         </template>
 
         <template v-else-if='stage === "moving"'>
           <span v-if='!code' class='flex row items-center' style='gap: .5rem;'>
-            <q-spinner-dots color='primary' size='sm'/>{{ status }}
+            <q-spinner-dots color='primary' size='sm'/>{{ lowerFirst(status) }}
           </span>
           <template v-else-if='!digitsAsked'>
             <a v-if='onAndroid && openLink && !showCode' :href='openLink' class='open-link'>open Cosign</a>
             <div v-else class='qr-frame bg-white self-center'>
               <BaseQr :key='code' :code='code'/>
             </div>
-            <span class='hint text-center'>{{ status }}</span>
+            <span class='hint text-center'>{{ lowerFirst(status) }}</span>
             <!-- Cosign refuses some moves without telling the page (a phone that already
                  holds a key), so after a while say what may have happened. -->
-            <span v-if='slow' class='hint text-center'>Nothing yet? If Cosign says this phone already holds a key, it can’t take another one yet. You can cancel here; your account wasn’t changed.</span>
+            <span v-if='slow' class='hint text-center'>nothing yet? if Cosign says this phone already holds a key, it can’t take another one yet. you can cancel here; your account wasn’t changed.</span>
             <q-btn
               v-if='onAndroid && openLink'
               flat dense no-caps size='sm' class='self-center'
@@ -39,7 +39,7 @@
             />
           </template>
           <q-form v-else class='flex column' style='gap: .5rem;' @submit.prevent='sendDigits'>
-            <span>Type the five digits Cosign shows on your phone.</span>
+            <span>type the five digits Cosign shows on your phone.</span>
             <q-input
               v-model='digits'
               id='protect-digits'
@@ -52,15 +52,15 @@
               class='digits'
               :hint='triesLeft < 3 ? `${triesLeft} tries left` : ""'
             />
-            <q-btn type='submit' unelevated color='primary' text-color='dark' label='move it' :disable='digits.length !== 5'/>
+            <q-btn type='submit' unelevated no-caps color='primary' text-color='dark' label='move it' :disable='digits.length !== 5'/>
           </q-form>
         </template>
 
         <template v-else-if='stage === "done"'>
-          <p>Your account is on your phone now. This browser no longer holds it; Astral signs through Cosign from here on.</p>
+          <p>your account is on your phone now. this browser no longer holds it; astral signs through Cosign from here on.</p>
         </template>
 
-        <span v-if='error' class='text-negative'>{{ error }}</span>
+        <span v-if='error' class='text-negative'>{{ lowerFirst(error) }}</span>
       </q-card-section>
 
       <q-card-actions align='right'>
@@ -80,6 +80,7 @@ import { defineComponent, markRaw } from 'vue'
 import { getAuthManager } from '../nostr/authManager'
 import { countVisit, shouldSuggestProtecting, snoozeProtecting } from '../utils/accountCare'
 import BaseQr from 'components/BaseQr.vue'
+import { lowerFirst } from '../utils/helpers'
 
 const SLOW_AFTER_MS = 45_000
 
@@ -87,18 +88,18 @@ const SLOW_AFTER_MS = 45_000
 // (import.ts reports it as "Not moved (<outcome>)."); anything else is shown as is.
 const OUTCOMES = {
   'peer-aborted': 'Cosign cancelled the move.',
-  declined: 'The move was cancelled.',
-  expired: 'The code expired before your phone answered.',
-  'attempts-exhausted': 'Too many wrong digits, so the move stopped.',
-  'blocked-peer': 'That code was blocked after earlier failed tries. Start again.',
-  'second-responder': 'Two phones answered the code, so nothing was sent. Start again.',
+  declined: 'the move was cancelled.',
+  expired: 'the code expired before your phone answered.',
+  'attempts-exhausted': 'too many wrong digits, so the move stopped.',
+  'blocked-peer': 'that code was blocked after earlier failed tries. start again.',
+  'second-responder': 'two phones answered the code, so nothing was sent. start again.',
   'bad-payload': 'Cosign couldn’t read what was sent.'
 }
 
 function moveError(err) {
   const msg = err?.message || ''
   const outcome = msg.match(/^Not moved \(([^)]+)\)/)?.[1]
-  return `${OUTCOMES[outcome] || msg || 'That didn’t work.'} Your account wasn’t changed.`
+  return `${OUTCOMES[outcome] || msg || 'that didn’t work.'} your account wasn’t changed.`
 }
 
 // Shown to accounts whose key lives only in this browser (keys.priv), from the
@@ -152,6 +153,8 @@ export default defineComponent({
   },
 
   methods: {
+    lowerFirst,
+
     later() {
       snoozeProtecting()
       this.snoozed = true

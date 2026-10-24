@@ -25,7 +25,10 @@ function buildConfig(saved) {
       color: {
         primary: color.primary || '#ffffff',
         secondary: color.secondary || '#aaaaaa',
-        accent: color.accent || '#777777',
+        // mono's old #777777 accent moves to #888888 (4.5:1 on #1f1f1f)
+        accent: !color.accent || (color.accent === '#777777' && color.primary === '#ffffff' && color.secondary === '#aaaaaa')
+          ? '#888888'
+          : color.accent,
         background: color.background || '#1f1f1f'
       },
       font,
