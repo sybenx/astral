@@ -20,6 +20,7 @@
       <div id='middle-page'>
         <q-page-container ref='pageContainer'>
           <!-- <TheKeyInitializationDialog v-if='!$store.state.keys.pub && !lookingAround' @look-around='lookingAround=true'/> -->
+          <TheProtectAccountBanner v-if='$store.state.keys.priv'/>
           <router-view v-slot="{ Component }">
             <keep-alive :include='cachedPages'>
               <component :is="Component" :key='$route.path' :looking-around='lookingAround' @scroll-to-rect='scrollToRect' @reply-event='setReplyEvent' @update-font='updateFont'/>
@@ -148,6 +149,7 @@ const { getVerticalScrollPosition, setVerticalScrollPosition} = scroll
 import TheUserMenu from 'components/TheUserMenu.vue'
 import TheSearchMenu from 'components/TheSearchMenu.vue'
 import TheKeyInitializationDialog from 'components/TheKeyInitializationDialog.vue'
+import TheProtectAccountBanner from 'components/TheProtectAccountBanner.vue'
 import { setCssVar } from 'quasar'
 import {getRelayStatus} from '../query'
 
@@ -157,6 +159,7 @@ export default defineComponent({
     TheUserMenu,
     TheSearchMenu,
     TheKeyInitializationDialog,
+    TheProtectAccountBanner,
   },
 
   setup () {

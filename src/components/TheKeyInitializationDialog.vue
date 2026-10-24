@@ -30,6 +30,47 @@
           label='sign in'
           @click='signIn'
         />
+        <q-btn
+          v-if='stage === "idle"'
+          flat
+          no-caps
+          class='full-width'
+          label='new here? create an account'
+          @click='startCreate'
+        />
+
+        <q-form v-else-if='stage === "create"' class='create-account full-width flex column' @submit.prevent='createAccount'>
+          <span class='text-subtitle1'>create your account</span>
+          <div class='flex row no-wrap items-center' style='gap: .8rem;'>
+            <label class='avatar-pick flex flex-center' for='new-account-picture' title='add a picture (optional)'>
+              <img v-if='picturePreview' :src='picturePreview' alt='your picture'/>
+              <q-icon v-else name='add_a_photo' size='sm'/>
+            </label>
+            <input id='new-account-picture' type='file' accept='image/*' class='hidden' @change='pickPicture'/>
+            <q-input
+              v-model='newName'
+              id='new-account-name'
+              class='col'
+              dense
+              outlined
+              autofocus
+              maxlength='50'
+              label='your name'
+            />
+          </div>
+          <span class='hint text-left'>Add a picture if you like. You can change both later in settings.</span>
+          <q-btn
+            type='submit'
+            unelevated
+            color='primary'
+            text-color='dark'
+            class='sign-in-button full-width'
+            label='create account'
+            :loading='creating'
+            :disable='!newName.trim()'
+          />
+          <span v-if='creating' class='hint'>{{ status }}</span>
+        </q-form>
 
         <template v-else-if='stage === "extension"'>
           <div class='flex row items-center' style='gap: .5rem;'>
@@ -87,7 +128,8 @@
             @click='startPhone'
           />
           <q-btn v-if='stage === "phone" && code' flat dense no-caps size='sm' icon='content_copy' label='copy link' @click='copyCode'/>
-          <q-btn v-if='stage !== "idle"' flat dense no-caps size='sm' label='cancel' @click='cancelSignIn'/>
+          <q-btn v-if='stage === "create" && !creating' flat dense no-caps size='sm' label='I already have an account' @click='stage = "idle"'/>
+          <q-btn v-else-if='stage !== "idle" && stage !== "create"' flat dense no-caps size='sm' label='cancel' @click='cancelSignIn'/>
         </div>
       </div>
 
@@ -274,7 +316,9 @@
 <script>
 import { defineComponent } from 'vue'
 import helpersMixin from '../utils/mixin'
-import { generatePrivateKey, nip06 } from '../utils/ntcompat'
+import { generatePrivateKey, getPublicKey, nip06 } from '../utils/ntcompat'
+import { uploadImage } from '../nostr/mediaUpload'
+import { markAccountCreated } from '../utils/accountCare'
 import { getAuthManager } from '../nostr/authManager'
 import { copyToClipboard, Notify } from 'quasar'
 // import { decode } from 'bech32-buffer'
@@ -310,8 +354,12 @@ export default defineComponent({
       bunkerString: '',
       bunkerConnecting: false,
       signerError: '',
-      // sign-in: idle → extension | phone → (confirm) → signing-in
+      // sign-in: idle → extension | phone → (confirm) → signing-in, or idle → create
       stage: 'idle',
+      newName: '',
+      pictureFile: null,
+      picturePreview: '',
+      creating: false,
       code: '',
       status: '',
       showCode: false,
@@ -404,6 +452,7 @@ export default defineComponent({
   beforeUnmount() {
     if (this.authUnsub) this.authUnsub()
     if (this.pairing) this.pairing.cancel()
+    if (this.picturePreview) URL.revokeObjectURL(this.picturePreview)
   },
 
   methods: {
@@ -551,6 +600,57 @@ export default defineComponent({
       this.status = ''
     },
 
+    startCreate() {
+      this.signerError = ''
+      this.stage = 'create'
+    },
+
+    pickPicture(e) {
+      const file = e.target.files?.[0]
+      if (!file) return
+      if (!file.type.startsWith('image/')) {
+        this.signerError = 'That file isn’t a picture.'
+        return
+      }
+      if (this.picturePreview) URL.revokeObjectURL(this.picturePreview)
+      this.pictureFile = file
+      this.picturePreview = URL.createObjectURL(file)
+    },
+
+    // Make an account here: a new key in this browser, then the profile. The
+    // picture is uploaded first, signed with the new key, so the dialog is still
+    // open to show progress; the account goes live once the profile is ready.
+    async createAccount() {
+      const name = this.newName.trim()
+      if (!name || this.creating) return
+      this.signerError = ''
+      this.creating = true
+      const priv = generatePrivateKey()
+      const pub = getPublicKey(priv)
+      const metadata = { name, display_name: name }
+      try {
+        if (this.pictureFile) {
+          this.status = 'uploading your picture…'
+          try {
+            metadata.picture = await uploadImage({ state: { keys: { priv, pub } } }, this.pictureFile)
+          } catch (err) {
+            Notify.create({ message: 'Couldn’t upload your picture. You can add one later in settings.', color: 'warning' })
+          }
+        }
+        this.status = 'setting up your account…'
+        this.$store.commit('setDefaultRelays', this.selectedRelays)
+        this.$store.dispatch('initKeys', { priv })
+        markAccountCreated()
+        await this.$store.dispatch('setMetadata', metadata)
+        this.$store.dispatch('launch')
+        this.$router.push('/')
+      } catch (err) {
+        this.signerError = err?.message || 'Couldn’t create your account.'
+      } finally {
+        this.creating = false
+      }
+    },
+
     copyCode() {
       if (!this.code) return
       copyToClipboard(this.code).then(() => Notify.create({ message: 'link copied' }))
@@ -604,6 +704,23 @@ export default defineComponent({
   max-width: 100%;
   padding: .5rem;
   border-radius: .4rem;
+}
+.create-account {
+  gap: .6rem;
+}
+.avatar-pick {
+  width: 3rem;
+  height: 3rem;
+  flex: none;
+  border-radius: 50%;
+  border: 1px dashed var(--q-accent);
+  cursor: pointer;
+  overflow: hidden;
+}
+.avatar-pick img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
 }
 .hint {
   font-size: .8rem;

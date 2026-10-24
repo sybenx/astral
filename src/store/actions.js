@@ -16,6 +16,7 @@ import {
 import {addRelays} from '../nostr/ndk'
 import {getPubKeyTagWithRelay} from '../utils/helpers'
 import {metadataFromEvent} from '../utils/event'
+import {countPost} from '../utils/accountCare'
 import * as helpersMixin from '../utils/mixin'
 
 export function initKeys(store, keys) {
@@ -339,6 +340,7 @@ export async function publishEvent(store, {unpublishedEvent}) {
     let publishResult = await publish(event, relays)
     if (!publishResult) console.log(`no publish confirmation for ${eventTypeWordy} event`)
     await store.dispatch('addEvent', {event})
+    if (event.kind === 1 && store.state.keys.priv) countPost()
     if (event.kind === 0) store.dispatch('handleAddingProfileEventToCache', event)
     else if (event.kind === 3) {
       let relays, follows
