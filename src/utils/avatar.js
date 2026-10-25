@@ -3,6 +3,7 @@
 // loaded anything) are skipped, so a dead image host isn't asked again for
 // every post on the page.
 import Identicon from 'identicon.js'
+import { reactive } from 'vue'
 
 const identicons = new Map() // `${pubkey}|${accent}|${background}` → data URI
 const hostFailures = new Map() // host → failed loads
@@ -62,4 +63,32 @@ export function markImageFailed(url) {
 export function markImageLoaded(url) {
   const host = hostOf(url)
   if (host) hostsThatWork.add(host)
+}
+
+// One request per picture, however many avatars show it: the first avatar
+// starts a probe, the rest watch its result here ('loading' | 'ok' | 'failed').
+export const pictureState = reactive({})
+const LOAD_TIMEOUT = 8000 // ms before a picture that hasn't loaded counts as failed
+
+export function loadPicture(url) {
+  if (!url || pictureState[url]) return
+  if (isDeadHost(url)) {
+    pictureState[url] = 'failed'
+    return
+  }
+  pictureState[url] = 'loading'
+  const img = new Image()
+  const settle = (ok) => {
+    if (pictureState[url] !== 'loading') return
+    clearTimeout(timer)
+    img.onload = img.onerror = null
+    pictureState[url] = ok ? 'ok' : 'failed'
+    if (ok) markImageLoaded(url)
+    else markImageFailed(url)
+  }
+  const timer = setTimeout(() => settle(false), LOAD_TIMEOUT) // a host that never answers
+  img.onload = () => settle(true)
+  img.onerror = () => settle(false)
+  img.decoding = 'async'
+  img.src = url
 }

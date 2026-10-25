@@ -1,8 +1,7 @@
 <template>
   <div :class='(bordered ? "bordered-avatar" : "") + (hoverEffect ? " hovered-avatar" : "")'>
     <q-avatar :rounded='!round' class='relative-position' :size='size' @click.stop="toProfile(pubkey)">
-      <!-- the identicon also sits behind the picture, so a slow or hanging image host shows it, not an empty circle -->
-      <img :src='src' alt='' loading='lazy' decoding='async' :style='{ backgroundImage: `url(${identicon})` }' class='avatar-img' @load='onLoad' @error='onError'/>
+      <img :src='src' alt='' decoding='async' class='avatar-img' @error='onError'/>
       <div :class='alignRight ? "icon-right" : "icon-left"' class='q-pt-xs'>
         <BaseButtonNIP05
           v-if='showVerified'
@@ -17,9 +16,7 @@
 <script>
 import helpersMixin from '../utils/mixin'
 import BaseButtonNIP05 from 'components/BaseButtonNIP05.vue'
-import { identiconFor, isDeadHost, markImageFailed, markImageLoaded } from '../utils/avatar'
-
-const LOAD_TIMEOUT = 8000 // ms before a picture that hasn't loaded counts as failed
+import { identiconFor, loadPicture, pictureState, markImageFailed } from '../utils/avatar'
 
 export default {
   mixins: [helpersMixin],
@@ -36,10 +33,6 @@ export default {
     hoverEffect: {type: Boolean, default: false},
   },
 
-  data() {
-    return { failed: false }
-  },
-
   computed: {
     picture() {
       return this.$store.state.profilesCache[this.pubkey]?.picture || ''
@@ -47,47 +40,26 @@ export default {
     identicon() {
       return identiconFor(this.pubkey, this.$store.state.config?.preferences?.color)
     },
-    // the profile picture, unless it's missing, failed, or on a host that keeps failing
+    // the picture once its shared request has loaded; the identicon until
+    // then, and for good if it fails or there is none
     src() {
-      if (!this.picture || this.failed || isDeadHost(this.picture)) return this.identicon
-      return this.picture
+      return this.picture && pictureState[this.picture] === 'ok' ? this.picture : this.identicon
     },
   },
 
   watch: {
-    picture() {
-      this.failed = false
-      this.armTimeout()
+    picture: {
+      handler(url) { loadPicture(url) },
+      immediate: true,
     },
-  },
-
-  mounted() {
-    this.armTimeout()
-  },
-
-  beforeUnmount() {
-    clearTimeout(this.timer)
   },
 
   methods: {
-    // a host that never answers counts as failed after a while
-    armTimeout() {
-      clearTimeout(this.timer)
-      if (this.src !== this.picture) return
-      this.timer = setTimeout(() => {
-        const img = this.$el?.querySelector?.('img')
-        if (img && !img.complete) this.onError()
-      }, LOAD_TIMEOUT)
-    },
-    onLoad() {
-      clearTimeout(this.timer)
-      if (this.src === this.picture) markImageLoaded(this.picture)
-    },
+    // a picture that loaded but won't decode in an <img>
     onError() {
-      clearTimeout(this.timer)
       if (this.src !== this.picture) return
+      pictureState[this.picture] = 'failed'
       markImageFailed(this.picture)
-      this.failed = true
     },
   },
 }

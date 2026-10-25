@@ -1,9 +1,10 @@
-// Profile search via Primal's public cache (user_search).
-//
-// Ported from plebs-vs-zombies. Primal's cache returns kind-0 profile events
-// ranked by relevance, which is far better than scanning relays. We
-// deliberately do NOT use relay.nostr.band. A NIP-50 relay fallback (noswhere)
-// covers the case where Primal is unreachable.
+// Profile search: Primal's public cache (user_search) and syb.lol's NIP-50
+// search, asked in parallel. Compared on 2026-10-24 (jack, fiatjaf, odell,
+// kat@x21.social, gigi, "derek ross"): Primal ranks best (the person you mean
+// first) but returns nothing for multi-word names; syb.lol is fastest and finds
+// those, with weaker ranking for common names. So Primal's order comes first,
+// then syb.lol's extras. search.nos.today (slow, noisy) is a last resort only;
+// relay.nostr.band (dead) and relay.noswhere.com (returns nothing) are gone.
 //
 // REQ format: ["REQ", "<id>", { cache: ["user_search", { query, limit }] }]
 
@@ -11,7 +12,8 @@ import ndk, { connect } from './ndk'
 import { NDKSubscriptionCacheUsage } from '@nostr-dev-kit/ndk'
 
 const PRIMAL_ENDPOINTS = ['wss://cache2.primal.net/v1', 'wss://cache1.primal.net/v1']
-const NIP50_RELAYS = ['wss://relay.noswhere.com', 'wss://search.nos.today']
+const NIP50_PRIMARY = ['wss://syb.lol']
+const NIP50_LAST_RESORT = ['wss://search.nos.today']
 
 class PrimalCache {
   constructor() {
@@ -134,13 +136,13 @@ function parseProfile(event) {
   }
 }
 
-// NIP-50 fallback over search-capable relays (not nostr.band).
-async function nip50Search(query, limit) {
+// NIP-50 search on the given relays; resolves with what arrived by EOSE or the timeout.
+async function nip50Search(query, limit, relays, timeout) {
   await connect()
   const { NDKRelaySet } = await import('@nostr-dev-kit/ndk')
   let relaySet
   try {
-    relaySet = NDKRelaySet.fromRelayUrls(NIP50_RELAYS, ndk)
+    relaySet = NDKRelaySet.fromRelayUrls(relays, ndk)
   } catch (_) {
     relaySet = undefined
   }
@@ -157,38 +159,33 @@ async function nip50Search(query, limit) {
     }
     sub.on('event', (e) => events.set(e.pubkey, e.rawEvent ? e.rawEvent() : e))
     sub.on('eose', finish)
-    setTimeout(finish, 4000)
+    setTimeout(finish, timeout)
   })
 }
 
 // Search profiles by name / display name / nip05. Returns parsed profiles
-// (newest kind-0 per pubkey), best-effort across Primal then NIP-50.
+// (newest kind-0 per pubkey): Primal's ranking first, then syb.lol's extras.
 export async function searchProfiles(query, limit = 10) {
   const q = (query || '').trim()
   if (q.length < 2) return []
 
-  let events = []
-  try {
-    events = await primal.searchUsers(q, limit)
-  } catch (_) {
-    events = []
-  }
-  if (!events.length) {
-    try {
-      events = await nip50Search(q, limit)
-    } catch (_) {
-      events = []
-    }
-  }
+  const [fromPrimal, fromRelay] = await Promise.all([
+    primal.searchUsers(q, limit).catch(() => []),
+    nip50Search(q, limit, NIP50_PRIMARY, 3000).catch(() => []),
+  ])
+  let events = [...fromPrimal, ...fromRelay]
+  if (!events.length) events = await nip50Search(q, limit, NIP50_LAST_RESORT, 2500).catch(() => [])
 
-  // newest kind-0 per pubkey
+  // first appearance sets the order (Primal before syb.lol); the newest kind-0 wins the content
+  const order = []
   const byPubkey = new Map()
   for (const ev of events) {
     const existing = byPubkey.get(ev.pubkey)
+    if (!existing) order.push(ev.pubkey)
     if (!existing || ev.created_at > existing.created_at) byPubkey.set(ev.pubkey, ev)
   }
-  return [...byPubkey.values()]
-    .map(parseProfile)
+  return order
+    .map((pk) => parseProfile(byPubkey.get(pk)))
     .filter((p) => p && !(p.nip05 && p.nip05.includes('mostr.pub')))
-    .slice(0, limit)
+    .slice(0, limit + 5) // room for the extras Primal didn't have
 }
