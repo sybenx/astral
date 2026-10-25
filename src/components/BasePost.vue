@@ -1,5 +1,6 @@
 <template>
   <div
+    v-if='!hiddenByMute'
     color='accent'
     class='post-padding cursor-pointer no-hover flex column no-wrap relative-position'
     clickable
@@ -100,6 +101,10 @@
               <q-item v-close-popup clickable @click='sharePost'>
                 <q-item-section avatar><q-icon name='share'/></q-item-section>
                 <q-item-section>share</q-item-section>
+              </q-item>
+              <q-item v-if='canMute' v-close-popup clickable :disable='mutes.saving' @click='toggleMute'>
+                <q-item-section avatar><q-icon :name='authorMuted ? "volume_up" : "volume_off"'/></q-item-section>
+                <q-item-section>{{ authorMuted ? 'unmute' : 'mute' }}</q-item-section>
               </q-item>
               <q-item v-if='canTranslate' v-close-popup clickable @click='translation ? (translation = null) : doTranslate()'>
                 <q-item-section avatar><q-icon name='translate'/></q-item-section>
@@ -358,6 +363,10 @@
       </div>
     </div>
   </div>
+  <!-- someone you muted, where a thread or profile still lists the post -->
+  <div v-else class='muted-post text-accent' @click.stop='showMuted = true'>
+    muted · <span class='text-secondary'>show</span>
+  </div>
 </template>
 
 <script>
@@ -375,6 +384,8 @@ import DOMPurify from 'dompurify'
 import { fetchReactionsFromCache, fetchZapTotalFromCache } from '../nostr/reactions'
 import { useUserStore } from '../stores/user'
 import { useBookmarksStore } from '../stores/bookmarks'
+import { useMutesStore } from '../stores/mutes'
+import { muteState, isMutedEvent } from '../nostr/muteFilter'
 import { translateState, looksTranslatable, translate } from '../utils/translate'
 import { Notify, copyToClipboard } from 'quasar'
 import { nip19 } from 'nostr-tools'
@@ -402,6 +413,7 @@ export default defineComponent({
 
   data() {
     return {
+      showMuted: false, // shown anyway after "show" on a muted post
       translation: null, // { text, from } once translated
       translating: false,
       menuUsed: false,
@@ -434,6 +446,20 @@ export default defineComponent({
     },
     bookmarked() {
       return this.bookmarks.has(this.event.id)
+    },
+    mutes() {
+      return useMutesStore()
+    },
+    // someone else's post, and signed in with something that can sign
+    canMute() {
+      return this.canBookmark && this.event.pubkey !== this.$store.state.keys.pub
+    },
+    authorMuted() {
+      return this.mutes.isMuted(this.event.pubkey)
+    },
+    hiddenByMute() {
+      void muteState.version
+      return !this.showMuted && isMutedEvent(this.event)
     },
     canTranslate() {
       return translateState.enabled && this.event.kind === 1 && looksTranslatable(this.event.content)
@@ -622,6 +648,20 @@ export default defineComponent({
       }
     },
 
+    async toggleMute() {
+      const mute = !this.authorMuted
+      try {
+        const done = await this.mutes.setMuted(this.$store, this.event.pubkey, mute)
+        if (done === null) return
+        Notify.create({
+          message: mute ? 'muted' : 'unmuted',
+          actions: mute ? [{ label: 'undo', color: 'secondary', handler: () => this.mutes.setMuted(this.$store, this.event.pubkey, false) }] : [],
+        })
+      } catch (e) {
+        Notify.create({ message: e?.message || String(e), color: 'negative' })
+      }
+    },
+
     async loadReactions() {
       const myPub = this.$store.state.keys.pub
       const reactions = await fetchReactionsFromCache(this.event.id)
@@ -724,6 +764,11 @@ export default defineComponent({
 })
 </script>
 <style lang="css" scoped>
+.muted-post {
+  padding: .5rem 1rem;
+  font-size: .85rem;
+  cursor: pointer;
+}
 .action-count {
   font-size: 0.7rem;
   line-height: 1;

@@ -19,10 +19,11 @@
 // Net effect: continuous endless scroll with a flat memory profile. No hard cap
 // is needed for memory — refs are tiny, events are plain, the DOM is bounded.
 
-import { ref, shallowRef } from 'vue'
+import { ref, shallowRef, watch } from 'vue'
 import { NDKRelaySet, NDKSubscriptionCacheUsage } from '@nostr-dev-kit/ndk'
 import ndk, { connect } from './ndk'
 import { splitAuthors } from './filters'
+import { muteState, isMutedEvent } from './muteFilter'
 
 const nowSec = () => Math.round(Date.now() / 1000)
 const toRaw = (e) => (e && e.rawEvent ? e.rawEvent() : e)
@@ -122,6 +123,7 @@ export function createFeed({
     const e = toRaw(ndkEvent)
     if (!e || !e.id || seen.has(e.id)) return null
     if (valid && !valid(e)) return null
+    if (isMutedEvent(e)) return null
     seen.add(e.id)
     if (typeof e.replies === 'undefined') e.replies = []
     if (enrich) {
@@ -251,8 +253,16 @@ export function createFeed({
     }
   }
 
+  // The mute list changed (loaded, or someone muted): drop what it now hides.
+  const stopMuteWatch = watch(() => muteState.version, () => {
+    const keep = (id) => !isMutedEvent(events.get(id))
+    if (!timeline.value.every(keep)) timeline.value = timeline.value.filter(keep)
+    if (!pending.value.every(keep)) pending.value = pending.value.filter(keep)
+  })
+
   // Full reset — drop subscriptions and all stored events/ids.
   function destroy() {
+    stopMuteWatch()
     generation++
     stop()
     events.clear()

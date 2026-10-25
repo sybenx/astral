@@ -186,6 +186,26 @@
     </div>
 
     <q-separator color='accent'/>
+    <div class='section'>
+      <div class="text-bold" style='font-size: 1.1rem;'>muted</div>
+      <div class='text-secondary q-mb-sm' style='font-size: .85rem;'>
+        your mute list is shared with other nostr apps. mute someone from the ⋯ menu on their post.
+      </div>
+      <div v-if='mutes.loading && !mutes.confirmed' class='text-secondary' style='font-size: .85rem;'>loading…</div>
+      <div v-else-if='!mutes.mutedPubkeys.length' class='text-secondary' style='font-size: .85rem;'>nobody muted.</div>
+      <div v-for='pk in mutes.mutedPubkeys' :key='pk' class='flex row no-wrap items-center justify-between'>
+        <BaseUserCard :pubkey='pk' :action-buttons='false' class='col'/>
+        <q-btn flat no-caps color='secondary' label='unmute' :disable='mutes.saving' style='min-height: 44px;' @click='unmute(pk)'/>
+      </div>
+      <div v-if='mutes.otherCount' class='text-secondary q-mt-xs' style='font-size: .85rem;'>
+        plus {{ mutes.otherCount }} muted {{ mutes.otherCount === 1 ? 'word, hashtag or thread' : 'words, hashtags or threads' }} from other apps, which apply here too.
+      </div>
+      <div v-if='!mutes.privateReadable' class='text-secondary q-mt-xs' style='font-size: .85rem;'>
+        the private part of your list couldn’t be read with this sign-in; it’s kept as it is.
+      </div>
+    </div>
+
+    <q-separator color='accent'/>
       <q-expansion-item
         dense
         expand-icon='help'
@@ -263,11 +283,12 @@ import helpersMixin from '../utils/mixin'
 import BaseSelectMultiple from 'components/BaseSelectMultiple.vue'
 import BaseInformation from 'components/BaseInformation.vue'
 import ThePreferences from 'components/ThePreferences.vue'
-import { createMetaMixin } from 'quasar'
+import { createMetaMixin, Notify } from 'quasar'
 import * as utils from '../utils/lnurl'
 import { getAuthManager } from '../nostr/authManager'
 import { getTranslateSettings, saveTranslateSettings, normalizeServerUrl, translate } from '../utils/translate'
 import ndk from '../nostr/ndk'
+import { useMutesStore } from '../stores/mutes'
 
 const metaData = {
   // sets document title
@@ -330,6 +351,9 @@ export default {
     },
   },
   computed: {
+    mutes() {
+      return useMutesStore()
+    },
     optionalRelays() {
       let options = this.$store.state.optionalRelaysList.filter(relay => {
         if (this.newRelay.length && !relay.toLowerCase().includes(this.newRelay.toLowerCase())) return false
@@ -373,6 +397,9 @@ export default {
 
   mounted() {
     if (!this.$store.state.keys.pub) this.$router.push('/')
+    this.mutes.load(this.$store).then(() => {
+      for (const pubkey of this.mutes.mutedPubkeys) this.$store.dispatch('useProfile', { pubkey })
+    }).catch(() => {})
 
     this.unsubscribe = this.$store.subscribe((mutation, state) => {
       switch (mutation.type) {
@@ -406,6 +433,13 @@ export default {
   },
 
   methods: {
+    async unmute(pubkey) {
+      try {
+        await this.mutes.setMuted(this.$store, pubkey, false)
+      } catch (e) {
+        Notify.create({ message: e?.message || String(e), color: 'negative' })
+      }
+    },
     // Check the server answers before keeping it: one tiny translation.
     async saveTranslate() {
       this.translateError = ''

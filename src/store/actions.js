@@ -13,6 +13,7 @@ import {
 } from '../query'
 import {addRelays} from '../nostr/ndk'
 import {relaysFromEvent, relayListTags} from '../nostr/relayList'
+import {useMutesStore} from '../stores/mutes'
 import {getPubKeyTagWithRelay} from '../utils/helpers'
 import {metadataFromEvent} from '../utils/event'
 import {countPost} from '../utils/accountCare'
@@ -31,6 +32,9 @@ export async function launch(store) {
 
   // adopt the user's NIP-65 relays first, then start subscriptions on them
   await store.dispatch('loadRelayList')
+
+  // the mute list applies everywhere; nothing waits for it
+  useMutesStore().load(store).catch((err) => console.warn('[mutes] load failed', err))
 
   // start listening for nostr events
   store.dispatch('restartMainSubscription')

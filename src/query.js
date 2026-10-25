@@ -281,14 +281,18 @@ export async function dbFollows(pubkey) {
   return fetchMany({ kinds: [3], authors: [pubkey], limit: 1 })
 }
 
-// NIP-51 bookmark list (kind 10003), newest wins. `answered` says whether the
-// relays finished replying, so "no list yet" can be told from "no answer".
-export async function dbBookmarkList(pubkey, relays) {
+// A NIP-51 replaceable list (bookmarks 10003, mutes 10000), newest wins.
+// `answered` says whether the relays finished replying, so "no list yet" can
+// be told from "no answer".
+export async function dbReplaceableList(kind, pubkey, relays) {
   await connect()
-  const events = await collect({ kinds: [10003], authors: [pubkey] }, relays, { ...FRESH, timeout: 6000 })
+  const events = await collect({ kinds: [kind], authors: [pubkey] }, relays, { ...FRESH, timeout: 6000 })
   const event = events.reduce((newest, e) => (!newest || e.created_at > newest.created_at ? e : newest), null)
   return { event, answered: events.eose === true }
 }
+
+export const dbBookmarkList = (pubkey, relays) => dbReplaceableList(10003, pubkey, relays)
+export const dbMuteList = (pubkey, relays) => dbReplaceableList(10000, pubkey, relays)
 
 // NIP-65 relay list (kind 10002) — newest wins.
 export async function dbRelayList(pubkey) {

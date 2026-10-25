@@ -139,6 +139,7 @@ import { nip05 } from 'nostr-tools'
 import helpersMixin from '../utils/mixin'
 import BaseButtonClear from 'components/BaseButtonClear.vue'
 import { searchProfiles } from '../nostr/profileSearch'
+import { isMutedPubkey } from '../nostr/muteFilter'
 
 const REORDER_CAP = 300
 
@@ -242,6 +243,7 @@ export default defineComponent({
           limit: 10,
           follows: this.$store.state.follows,
           cached: this.$store.state.profilesCache,
+          hidden: isMutedPubkey,
           onResults: show,
           signal: ctrl.signal,
         })
