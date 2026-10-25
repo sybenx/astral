@@ -145,7 +145,9 @@ export default defineComponent({
       this.engine = markRaw(createFeed({
         kinds: [1, 2],
         authors: useFollows ? follows : null,
-        relays: this.relays(),
+        // follows: no fixed relays, so NDK's outbox model reads each author from
+        // their own NIP-65 write relays (your relays for anyone without a list)
+        relays: useFollows ? null : this.relays(),
         pageSize: 50,
         enrich: (e) => this.interpolateEventMentions(e),
         valid: isValidEvent,
