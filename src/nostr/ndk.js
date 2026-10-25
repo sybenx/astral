@@ -6,6 +6,7 @@
 
 import NDK, { NDKEvent, NDKRelaySet } from '@nostr-dev-kit/ndk'
 import NDKCacheAdapterDexie from '@nostr-dev-kit/ndk-cache-dexie'
+import { schedulePrune } from './cachePrune'
 import { LocalStorage } from 'quasar'
 
 // Sensible, currently-alive default relays. The 2022 list in store/state.js is
@@ -46,6 +47,8 @@ const ndk = new NDK({
   autoFetchUserMutelist: false,
   cacheAdapter
 })
+
+if (cacheAdapter) schedulePrune(() => ndk.activeUser?.pubkey || null)
 
 let connectPromise = null
 
