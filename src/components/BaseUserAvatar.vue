@@ -1,7 +1,8 @@
 <template>
   <div :class='(bordered ? "bordered-avatar" : "") + (hoverEffect ? " hovered-avatar" : "")'>
     <q-avatar :rounded='!round' class='relative-position' :size='size' @click.stop="toProfile(pubkey)">
-      <img :src='src' alt='' loading='lazy' decoding='async' @load='onLoad' @error='onError'/>
+      <!-- the identicon also sits behind the picture, so a slow or hanging image host shows it, not an empty circle -->
+      <img :src='src' alt='' loading='lazy' decoding='async' :style='{ backgroundImage: `url(${identicon})` }' class='avatar-img' @load='onLoad' @error='onError'/>
       <div :class='alignRight ? "icon-right" : "icon-left"' class='q-pt-xs'>
         <BaseButtonNIP05
           v-if='showVerified'
@@ -17,6 +18,8 @@
 import helpersMixin from '../utils/mixin'
 import BaseButtonNIP05 from 'components/BaseButtonNIP05.vue'
 import { identiconFor, isDeadHost, markImageFailed, markImageLoaded } from '../utils/avatar'
+
+const LOAD_TIMEOUT = 8000 // ms before a picture that hasn't loaded counts as failed
 
 export default {
   mixins: [helpersMixin],
@@ -54,14 +57,34 @@ export default {
   watch: {
     picture() {
       this.failed = false
+      this.armTimeout()
     },
   },
 
+  mounted() {
+    this.armTimeout()
+  },
+
+  beforeUnmount() {
+    clearTimeout(this.timer)
+  },
+
   methods: {
+    // a host that never answers counts as failed after a while
+    armTimeout() {
+      clearTimeout(this.timer)
+      if (this.src !== this.picture) return
+      this.timer = setTimeout(() => {
+        const img = this.$el?.querySelector?.('img')
+        if (img && !img.complete) this.onError()
+      }, LOAD_TIMEOUT)
+    },
     onLoad() {
+      clearTimeout(this.timer)
       if (this.src === this.picture) markImageLoaded(this.picture)
     },
     onError() {
+      clearTimeout(this.timer)
       if (this.src !== this.picture) return
       markImageFailed(this.picture)
       this.failed = true
@@ -71,6 +94,10 @@ export default {
 </script>
 
 <style lang='css' scoped>
+.avatar-img {
+  background-size: cover;
+  background-position: center;
+}
 .bordered-avatar .q-avatar img {
   border: 2px solid var(--q-accent);
   background: var(--q-background);
