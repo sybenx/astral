@@ -164,8 +164,9 @@ all ~200 on open (ThePreferences). Images: `decoding='async'`, imeta alt text; i
 13. Delete dead `src/*.worker.js` (relay/query/db/event). S
 14. `store/state.js` default relays are dead 2022 list → import `DEFAULT_RELAYS`
     from `ndk.js`. S
-15. `signAsynchronously` bypasses NDK for local keys → always `NDKEvent.sign()`
-    (`utils/event.js:44`). S
+15. **(done 2026-10-24, partly)** local keys now also set `ndk.signer` (`src/store/signer.js`, on
+    sign-in, sign-up and restore), so zap requests and other `ndk.signer` checks work for them.
+    `signAsynchronously` still signs local-key events directly (same result, no double signing). S
 
 ## PWA (since 2026-10-24)
 - `npm run deploy` builds PWA mode (`dist/pwa`) and deploys it; `wrangler.jsonc` serves `dist/pwa`.

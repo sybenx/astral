@@ -1,8 +1,8 @@
 // Back up / restore the NWC connection string to Nostr relays via NIP-78
 // (kind 30078 replaceable app-data), NIP-44 encrypted to the user's own key.
 //
-// Signs through Astral's normal path (signAsynchronously → query.publish) so it
-// works for local-key users too (their key isn't on ndk.signer).
+// Signs through Astral's normal path (signAsynchronously → query.publish), the
+// same for every kind of sign-in.
 
 import ndk, { connect, relaySetFrom } from '../ndk'
 import { NDKSubscriptionCacheUsage } from '@nostr-dev-kit/ndk'

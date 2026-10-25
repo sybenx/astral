@@ -9,6 +9,7 @@ import storage from './storage'
 import eventize from './eventize'
 import relayize from './relayize'
 import unread from './unread'
+import signer from './signer'
 
 export default store(function (/* { ssrContext } */) {
   return createStore({
@@ -16,6 +17,6 @@ export default store(function (/* { ssrContext } */) {
     getters,
     mutations,
     actions,
-    plugins: [storage, eventize, relayize, unread]
+    plugins: [storage, signer, eventize, relayize, unread]
   })
 })

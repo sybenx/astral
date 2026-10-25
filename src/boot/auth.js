@@ -4,8 +4,8 @@ import { createAuthManager } from '../nostr/authManager'
 
 // Instantiate the AuthManager singleton at startup. Its constructor runs
 // initializeFromStorage(), which restores the active NDK signer on reload for
-// NIP-07 and NIP-46 sessions (legacy local-key sessions sign via the Vuex
-// keys.priv path and are untouched here).
+// NIP-07 and NIP-46 sessions. Keys held in this browser get their NDK signer
+// from the store (src/store/signer.js).
 export default boot(() => {
   createAuthManager(ndk)
 })
