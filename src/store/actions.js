@@ -3,16 +3,16 @@ import {Notify, debounce} from 'quasar'
 import {signAsynchronously} from '../utils/event'
 import {
   getProfiles,
-  dbProfile,
   getEvents,
   dbEvent,
   dbFollows,
-  dbRelayList,
+  dbRelayListConfirmed,
   streamMainProfilesFollows,
   dbSave,
   publish,
 } from '../query'
 import {addRelays} from '../nostr/ndk'
+import {relaysFromEvent, relayListTags} from '../nostr/relayList'
 import {getPubKeyTagWithRelay} from '../utils/helpers'
 import {metadataFromEvent} from '../utils/event'
 import {countPost} from '../utils/accountCare'
@@ -38,21 +38,18 @@ export async function launch(store) {
 
 // Fetch the user's NIP-65 (kind 10002) relay list and adopt it as the active
 // relay set. Modern clients publish relays here rather than in kind-3 content.
+// relayListKnown: the relays answered (with a list or with none), so a relay
+// edit may publish a new list without replacing one we never saw.
+let relayListKnown = false
+let relayListFound = false
 export async function loadRelayList(store) {
   if (!store.state.keys.pub) return
   try {
-    const event = await dbRelayList(store.state.keys.pub)
-    if (!event || !event.tags) return
-
-    const relays = {}
-    for (const [t, url, marker] of event.tags) {
-      if (t !== 'r' || !url) continue
-      // No marker → both read and write (per NIP-65).
-      relays[url] = {
-        read: marker !== 'write',
-        write: marker !== 'read'
-      }
-    }
+    const { event, answered } = await dbRelayListConfirmed(store.state.keys.pub)
+    if (answered) relayListKnown = true
+    if (!event) return
+    relayListFound = true
+    const relays = relaysFromEvent(event)
     if (Object.keys(relays).length) {
       store.commit('setRelays', relays)
       addRelays(Object.keys(relays))
@@ -60,6 +57,30 @@ export async function loadRelayList(store) {
   } catch (err) {
     console.warn('[loadRelayList] failed', err)
   }
+}
+
+// Publish the relay map as the user's NIP-65 list (after a relay edit).
+export async function publishRelayList(store) {
+  if (!store.state.keys.pub) return
+  if (!relayListKnown) await store.dispatch('loadRelayList')
+  if (!relayListKnown) {
+    Notify.create({
+      message: 'couldn’t load your relay list from relays, so the change is saved here only',
+      color: 'warning'
+    })
+    return
+  }
+  const tags = relayListTags(store.state.relays)
+  if (!tags.length) return // never publish an empty list
+  return store.dispatch('publishEvent', {
+    unpublishedEvent: {
+      pubkey: store.state.keys.pub,
+      created_at: Math.floor(Date.now() / 1000),
+      kind: 10002,
+      tags,
+      content: ''
+    }
+  })
 }
 
 let mainSub = {}
@@ -94,7 +115,8 @@ export async function restartMainSubscription(store) {
           // modern kind-3 events leave content empty (relays live in NIP-65
           // kind-10002). Only adopt content when it actually parses — a bad or
           // empty content must never abort the follows update below.
-          if (event.content && event.content.trim()) {
+          // A NIP-65 list, when there is one, wins over that legacy JSON.
+          if (!relayListFound && event.content && event.content.trim()) {
             try {
               store.commit('setRelays', JSON.parse(event.content))
             } catch (_) {
@@ -212,7 +234,7 @@ export async function publishContactList(store) {
       created_at: Math.floor(Date.now() / 1000),
       kind: 3,
       tags: newTags,
-      content: JSON.stringify(store.state.relays)
+      content: '' // relays are in the NIP-65 list (kind 10002), not kind-3 content
     }
     return await store.dispatch('publishEvent', {unpublishedEvent})
 
@@ -316,10 +338,13 @@ export async function publishEvent(store, {unpublishedEvent}) {
       eventTypeWordy = 'recommend relay'
       break
     case 3:
-      eventTypeWordy = 'follows and relay list'
+      eventTypeWordy = 'follows list'
       break
     case 4:
       eventTypeWordy = 'dm'
+      break
+    case 10002:
+      eventTypeWordy = 'relay list'
       break
     default:
       eventTypeWordy = `kind ${unpublishedEvent.kind}`
@@ -342,17 +367,12 @@ export async function publishEvent(store, {unpublishedEvent}) {
     if (event.kind === 1 && store.state.keys.priv) countPost()
     if (event.kind === 0) store.dispatch('handleAddingProfileEventToCache', event)
     else if (event.kind === 3) {
-      let relays, follows
-      relays = JSON.parse(event.content)
-      follows = event.tags
+      const follows = event.tags
         .filter(([t, v]) => t === 'p' && v)
         .map(([_, v]) => v)
-
-      // update store state
       store.commit('setFollows', follows)
-      store.commit('setRelays', relays)
     }
-    if ([0, 3].includes(event.kind)) {
+    if ([0, 3, 10002].includes(event.kind)) {
       Notify.create({
         message: `published updated ${eventTypeWordy} event`,
         color: 'positive'
@@ -371,24 +391,30 @@ export async function publishEvent(store, {unpublishedEvent}) {
 
 const debouncedGetProfiles = debounce(async (store) => {
   if (!gettingProfiles) getQueuedProfiles(store)
-}, 1000)
+}, 250)
 
 async function getQueuedProfiles(store) {
-  if (profilesQueue.length) {
-    gettingProfiles = true
-    let relays = Object.keys(store.state.relays).length ? Object.keys(store.state.relays) : Object.keys(store.state.defaultRelays)
-    let authors = profilesQueue.splice(0, 50)
-    while (authors && authors.length) {
-      let events = await getProfiles({authors, relays})
-      if (events) for (let event of events) store.dispatch('handleAddingProfileEventToCache', event)
-      authors = profilesQueue.splice(0, 50)
+  gettingProfiles = true
+  try {
+    while (profilesQueue.length) {
+      let relays = Object.keys(store.state.relays).length ? Object.keys(store.state.relays) : Object.keys(store.state.defaultRelays)
+      // up to 4 batches of 100 at once
+      const batches = []
+      while (profilesQueue.length && batches.length < 4) batches.push(profilesQueue.splice(0, PROFILE_BATCH))
+      await Promise.all(batches.map(async (authors) => {
+        let events = await getProfiles({authors, relays})
+        if (events) for (let event of events) store.dispatch('handleAddingProfileEventToCache', event)
+      }))
     }
+  } finally {
     gettingProfiles = false
   }
 }
 
-// let profilesInUse = {}
+const PROFILE_BATCH = 100
+const PROFILE_RETRY_MS = 5 * 60 * 1000 // a profile no relay had isn't asked for again sooner
 let profilesQueue = []
+let profilesAsked = new Map() // pubkey → when it was last queued
 let gettingProfiles = false
 export async function useProfile(store, {pubkey}) {
   if (!helpersMixin.default.methods.isKey(pubkey)) return
@@ -399,14 +425,14 @@ export async function useProfile(store, {pubkey}) {
       ...store.state.profilesCache[pubkey]
     }) // (just the pubkey is enough)
   } else {
-    // fetch from db and add to cache
-    let event = await dbProfile(pubkey)
-    if (event) {
-      store.dispatch('handleAddingProfileEventToCache', event)
-    } else {
-      profilesQueue.push(pubkey)
-      debouncedGetProfiles(store)
-    }
+    // Queued and fetched in batches (cache and relays together): a page of
+    // posts asks once per batch, not once per author.
+    const askedAt = profilesAsked.get(pubkey)
+    if (askedAt && Date.now() - askedAt < PROFILE_RETRY_MS) return
+    if (profilesAsked.size > 20000) profilesAsked.clear()
+    profilesAsked.set(pubkey, Date.now())
+    profilesQueue.push(pubkey)
+    debouncedGetProfiles(store)
   }
 }
 

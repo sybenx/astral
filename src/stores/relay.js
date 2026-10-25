@@ -2,6 +2,7 @@ import { defineStore } from 'pinia'
 import { LocalStorage } from 'quasar'
 import { DEFAULT_RELAYS, addRelays } from '../nostr/ndk'
 import { dbRelayList } from '../query'
+import { relaysFromEvent } from '../nostr/relayList'
 
 export const useRelayStore = defineStore('relay', {
   state: () => ({
@@ -37,14 +38,7 @@ export const useRelayStore = defineStore('relay', {
       try {
         const event = await dbRelayList(pub)
         if (!event?.tags) return
-        const relays = {}
-        for (const [t, url, marker] of event.tags) {
-          if (t !== 'r' || !url) continue
-          relays[url] = {
-            read: marker !== 'write',
-            write: marker !== 'read'
-          }
-        }
+        const relays = relaysFromEvent(event)
         if (Object.keys(relays).length) {
           this.save(relays)
           addRelays(Object.keys(relays))

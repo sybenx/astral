@@ -22,6 +22,7 @@
 import { ref, shallowRef } from 'vue'
 import { NDKRelaySet, NDKSubscriptionCacheUsage } from '@nostr-dev-kit/ndk'
 import ndk, { connect } from './ndk'
+import { splitAuthors } from './filters'
 
 const nowSec = () => Math.round(Date.now() / 1000)
 const toRaw = (e) => (e && e.rawEvent ? e.rawEvent() : e)
@@ -95,10 +96,24 @@ export function createFeed({
   }
 
   function buildFilter(extra) {
-    if (baseFilter) return { ...baseFilter, ...extra }
+    if (baseFilter) return splitAuthors({ ...baseFilter, ...extra })
     const filter = { kinds, ...extra }
     if (authors && authors.length) filter.authors = authors
-    return filter
+    return splitAuthors(filter) // several filters past 500 authors
+  }
+
+  // With several author chunks, each returns its own newest `limit`. Keeping
+  // only the newest pageSize overall leaves no gaps: a chunk that filled its
+  // limit has nothing missing above the page's oldest kept event. The rest
+  // are forgotten so a later page can accept them again.
+  function trimPage(collected, chunked) {
+    if (!chunked || collected.length <= pageSize) return collected
+    collected.sort((a, b) => b.created_at - a.created_at)
+    for (const e of collected.slice(pageSize)) {
+      seen.delete(e.id)
+      events.delete(e.id)
+    }
+    return collected.slice(0, pageSize)
   }
 
   // Normalize, validate, enrich and store an incoming NDK event. Returns the
@@ -136,10 +151,11 @@ export function createFeed({
         } catch (_) {
           /* already stopped */
         }
-        resolve(collected)
+        resolve(trimPage(collected, Array.isArray(filter)))
       }
+      const filter = buildFilter({ limit: pageSize, until })
       const sub = ndk.subscribe(
-        buildFilter({ limit: pageSize, until }),
+        filter,
         // PARALLEL queries cache AND relays together: cached events paint instantly
         // while relays fill in fresh ones. (CACHE_FIRST can EOSE on an empty cache
         // before relays answer, yielding an empty page.)

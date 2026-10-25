@@ -8,10 +8,13 @@ export default function (store) {
       case 'removeRelay':
       case 'setRelayOpt':
       case 'saveRelays':
+        // relays: the NIP-65 list (kind 10002)
+        store.dispatch('publishRelayList')
+        break
       case 'follow':
       case 'unfollow':
       case 'reorderFollows':
-        // make an event kind3 and publish it
+        // follows: the contact list (kind 3)
         store.dispatch('publishContactList')
         break
     }

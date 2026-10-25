@@ -16,6 +16,7 @@
 
 import { NDKRelaySet, NDKSubscriptionCacheUsage } from '@nostr-dev-kit/ndk'
 import ndk, { connect, NDKEvent } from './nostr/ndk'
+import { splitAuthors } from './nostr/filters'
 
 const now = () => Math.round(Date.now() / 1000)
 
@@ -59,7 +60,7 @@ function collect(filter, relays, { timeout = 4000, cacheUsage = NDKSubscriptionC
       resolve(result)
     }
     const sub = ndk.subscribe(
-      filter,
+      splitAuthors(filter),
       { closeOnEose: true, groupable: false, cacheUsage, relaySet: relaySet(relays) }
     )
     sub.on('event', (event) => {
@@ -99,7 +100,7 @@ function makeStream(filterFn) {
     const start = (s) => {
       const { filter, relays } = filterFn(s)
       const subscription = ndk.subscribe(
-        filter,
+        splitAuthors(filter),
         { closeOnEose: false, groupable: false, relaySet: relaySet(relays) }
       )
       subscription.on('event', (event) => {
@@ -292,6 +293,15 @@ export async function dbBookmarkList(pubkey, relays) {
 // NIP-65 relay list (kind 10002) — newest wins.
 export async function dbRelayList(pubkey) {
   return fetchOne({ kinds: [10002], authors: [pubkey] }, undefined, FRESH)
+}
+
+// Same, with `answered`: the relays finished replying, so "no list" is known
+// rather than "no answer" (publishing over an unknown list would replace it).
+export async function dbRelayListConfirmed(pubkey) {
+  await connect()
+  const events = await collect({ kinds: [10002], authors: [pubkey] }, undefined, { ...FRESH, timeout: 6000 })
+  const event = events.reduce((newest, e) => (!newest || e.created_at > newest.created_at ? e : newest), null)
+  return { event, answered: events.eose === true || !!event }
 }
 
 export async function dbChats(pubkey) {

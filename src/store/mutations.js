@@ -34,6 +34,9 @@ export function addRelay(state, url) {
     return
   }
 
+  // With nothing saved the defaults are in use: adding a relay adds to them
+  // rather than leaving that one relay as the whole (published) list.
+  if (!Object.keys(state.relays).length) state.relays = JSON.parse(JSON.stringify(state.defaultRelays))
   state.relays[url] = {
     read: true,
     write: true
