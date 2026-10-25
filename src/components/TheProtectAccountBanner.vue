@@ -11,11 +11,11 @@
   <q-dialog v-model='open' @hide='onHide'>
     <q-card class='protect-dialog'>
       <q-card-section class='flex column' style='gap: .7rem;'>
-        <span class='text-h6'>protect your account with marble</span>
+        <span class='text-h6'>protect your account</span>
 
         <template v-if='stage === "intro"'>
-          <p>move your account to your phone with marble. your phone and your servers hold it together, so it stays yours even if this browser is lost, and this browser no longer holds it.</p>
-          <p class='hint'>you’ll need marble on your phone. <a href='https://cosign.aaro.cc/' target='_blank' rel='noopener noreferrer'>get marble</a></p>
+          <p>move your key to your phone. your signer app and your servers hold it together, so it stays yours even if this browser is lost, and this browser no longer holds it.</p>
+          <p class='hint'>don’t have a signer app on your phone? <a href='https://cosign.aaro.cc/' target='_blank' rel='noopener noreferrer' class='get-signer'>get marble</a></p>
         </template>
 
         <template v-else-if='stage === "moving"'>
@@ -23,14 +23,14 @@
             <q-spinner-dots color='primary' size='sm'/>{{ lowerFirst(status) }}
           </span>
           <template v-else-if='!digitsAsked'>
-            <a v-if='onAndroid && openLink && !showCode' :href='openLink' class='open-link'>open marble</a>
+            <a v-if='onAndroid && openLink && !showCode' :href='openLink' class='open-link'>open your signer app</a>
             <div v-else class='qr-frame bg-white self-center'>
               <BaseQr :key='code' :code='code'/>
             </div>
             <span class='hint text-center'>{{ lowerFirst(status) }}</span>
             <!-- Cosign refuses some moves without telling the page (a phone that already
                  holds a key), so after a while say what may have happened. -->
-            <span v-if='slow' class='hint text-center'>nothing yet? if marble says this phone already holds a key, it can’t take another one yet. you can cancel here; your account wasn’t changed.</span>
+            <span v-if='slow' class='hint text-center'>nothing yet? if your signer app says this phone already holds a key, it can’t take another one yet. you can cancel here; your account wasn’t changed.</span>
             <q-btn
               v-if='onAndroid && openLink'
               flat dense no-caps size='sm' class='self-center'
@@ -39,7 +39,7 @@
             />
           </template>
           <q-form v-else class='flex column' style='gap: .5rem;' @submit.prevent='sendDigits'>
-            <span>type the five digits marble shows on your phone.</span>
+            <span>type the five digits your phone shows.</span>
             <q-input
               v-model='digits'
               id='protect-digits'
@@ -57,7 +57,7 @@
         </template>
 
         <template v-else-if='stage === "done"'>
-          <p>your account is on your phone now. this browser no longer holds it; astral signs through marble from here on.</p>
+          <p>your account is on your phone now. this browser no longer holds it; astral signs through your phone from here on.</p>
         </template>
 
         <span v-if='error' class='text-negative'>{{ lowerFirst(error) }}</span>
@@ -87,13 +87,13 @@ const SLOW_AFTER_MS = 45_000
 // How a move ended, in words. QRST ends a session with an outcome
 // (import.ts reports it as "Not moved (<outcome>)."); anything else is shown as is.
 const OUTCOMES = {
-  'peer-aborted': 'marble cancelled the move.',
+  'peer-aborted': 'your phone cancelled the move.',
   declined: 'the move was cancelled.',
   expired: 'the code expired before your phone answered.',
   'attempts-exhausted': 'too many wrong digits, so the move stopped.',
   'blocked-peer': 'that code was blocked after earlier failed tries. start again.',
   'second-responder': 'two phones answered the code, so nothing was sent. start again.',
-  'bad-payload': 'marble couldn’t read what was sent.'
+  'bad-payload': 'your phone couldn’t read what was sent.'
 }
 
 function moveError(err) {
@@ -269,6 +269,11 @@ export default defineComponent({
 }
 .hint a {
   color: var(--q-primary);
+}
+/* small optional link, still a finger-sized target */
+.get-signer {
+  display: inline-block;
+  padding: .8rem .25rem;
 }
 .qr-frame {
   width: 15rem;

@@ -85,16 +85,19 @@
             <q-spinner-dots color='primary' size='sm'/>{{ lowerFirst(status) || 'getting a code ready…' }}
           </span>
           <template v-else-if='onAndroid && !showCode'>
-            <!-- A real link the user taps, so Android hands it to Cosign (App Links). -->
+            <!-- A real link the user taps, so Android hands it to the signer app (App Links). -->
             <a :href='code' class='sign-in-button sign-in-link full-width'>open your signer app</a>
-            <span class='hint'>opens marble or your signer app. approve there, then come back here.</span>
+            <span class='hint'>approve there, then come back here.</span>
+            <!-- any app that speaks the Cosign protocol can sign; marble is one, listed as an option -->
+            <span class='hint'>don’t have one? <a href='https://cosign.aaro.cc/' target='_blank' rel='noopener noreferrer' class='get-signer'>get marble</a></span>
           </template>
           <template v-else>
             <div class='qr-frame bg-white'>
               <BaseQr :key='code' :code='code'/>
             </div>
             <span class='hint'>{{ lowerFirst(status) }}</span>
-            <span class='hint'>Amber and other signer apps can scan it too.</span>
+            <span class='hint'>any nostr signer app can scan it.</span>
+            <span class='hint'>don’t have one? <a href='https://cosign.aaro.cc/' target='_blank' rel='noopener noreferrer' class='get-signer'>get marble</a></span>
           </template>
         </template>
 
@@ -779,6 +782,12 @@ export default defineComponent({
   font-size: .8rem;
   color: var(--q-secondary);
   text-align: center;
+}
+/* small optional link, still a finger-sized target */
+.get-signer {
+  display: inline-block;
+  padding: .8rem .25rem;
+  color: var(--q-primary);
 }
 </style>
 

@@ -140,11 +140,18 @@ export async function getEventIdTagWithRelay(eventId, ...appendedValues) {
 
 // Astral's voice is lowercase. Messages from shared code (Cosign, signers)
 // arrive capitalised, so lowercase their first letter for display, leaving
-// names like Cosign or Nostr alone. The Marble app is written "marble" here.
+// names like Cosign or Nostr alone.
 const KEEP_CAPITAL = /^(Cosign|Nostr|Amber|Clave|Alby|I)\b/
+// Any signer app can sign, so don't name one. Older vendored Cosign strings
+// say "Marble"; drop to "your phone" / "your signer app" until they're neutral.
+const NEUTRAL = [
+  [/\bwith Marble on your phone\b/g, 'with your phone'],
+  [/\bin Marble\b/g, 'in your signer app'],
+  [/\bMarble\b/g, 'your signer app'],
+]
 export function lowerFirst(text) {
   if (!text) return ''
-  const t = text.replace(/\bMarble\b/g, 'marble')
+  const t = NEUTRAL.reduce((acc, [re, to]) => acc.replace(re, to), text)
   if (KEEP_CAPITAL.test(t)) return t
   return t.charAt(0).toLowerCase() + t.slice(1)
 }
