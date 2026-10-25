@@ -45,8 +45,16 @@ After: check the Docker build GitHub Action + any lunar.ninja deploy/DNS.
   `src/query.js` is THE seam — it kept the old worker API's exact signatures +
   `{update, cancel}` stream contract (callbacks get ARRAYS) but runs on NDK, so
   all ~50 components + the Vuex store work unchanged. Reads use an EOSE+timeout
-  `collect()` because NDK 2.10 `fetchEvents` hangs on `#p` filters. Profile /
-  relay-list reads use `PARALLEL` cache so the newest kind-0 wins.
+  `collect()` because NDK `fetchEvents` hangs on `#p` filters (still in 2.18).
+  Profile / relay-list reads use `PARALLEL` cache so the newest kind-0 wins.
+- **NDK 2.18 gotchas:** the relay set goes in `opts.relaySet`. By default a
+  subscription also receives matching events from *any* relay, and NDK's matcher
+  ignores `search`, so NIP-50 subscriptions need `exclusiveRelay: true` or every
+  kind-0 the app fetches lands in the results.
+- **Stale dev bundle:** Vite didn't re-optimize after the NDK bump (the
+  `resolutions` change), and `quasar dev` served NDK 2.10 for days. After any
+  dependency change, `rm -rf node_modules/.q-cache/dev-spa/vite-spa/deps` and
+  restart. Production builds read `node_modules` directly and were fine.
 - **Signers:** `src/nostr/authManager.js` (NIP-07, NIP-46 bunker:// +
   nostrconnect, nsec) + `nip46Rpc.js` + `nip44LocalSigner.js`. Signing routes
   through the active NDK signer (`src/utils/event.js` signAsynchronously).
