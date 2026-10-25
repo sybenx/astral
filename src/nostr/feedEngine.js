@@ -79,6 +79,7 @@ export function createFeed({
   let started = false
   let primed = false // the first page is in, so newestAt means something
   let liveWanted = true // false while stop()ped (hidden tab, sign-in dialog up)
+  let generation = 0 // bumped by destroy(), so a fetch already in flight is dropped
 
   const at = (id) => events.get(id)?.created_at || 0
 
@@ -172,9 +173,14 @@ export function createFeed({
   async function start() {
     if (started) return
     started = true
-    await connect()
+    // loading is set before the connect wait (up to 2.5s), or an empty list's
+    // scroll handler gets in a loadMore() ahead of the first page
     loading.value = true
+    const gen = generation
+    await connect()
+    if (gen !== generation) return
     const page = await fetchPage(oldestUntil)
+    if (gen !== generation) return
     const ids = page.map((e) => e.id).sort((a, b) => at(b) - at(a))
     timeline.value = ids
     if (ids.length) {
@@ -195,9 +201,11 @@ export function createFeed({
   }
 
   async function loadMore() {
-    if (loading.value || reachedEnd.value || !started) return
+    if (loading.value || reachedEnd.value || !primed) return
     loading.value = true
+    const gen = generation
     const page = await fetchPage(oldestUntil)
+    if (gen !== generation) return
     if (page.length) {
       const older = page.map((e) => e.id).sort((a, b) => at(b) - at(a))
       timeline.value = timeline.value.concat(older)
@@ -229,6 +237,7 @@ export function createFeed({
 
   // Full reset — drop subscriptions and all stored events/ids.
   function destroy() {
+    generation++
     stop()
     events.clear()
     seen.clear()
@@ -237,6 +246,7 @@ export function createFeed({
     started = false
     primed = false
     liveWanted = true
+    loading.value = false
     reachedEnd.value = false
     oldestUntil = nowSec()
     newestAt = 0
