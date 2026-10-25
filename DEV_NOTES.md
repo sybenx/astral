@@ -61,7 +61,7 @@ After: check the Docker build GitHub Action + any lunar.ninja deploy/DNS.
   Restored on reload via `src/boot/auth.js`.
 - **nostr-tools v1→v2 shim:** `src/utils/ntcompat.js` (only ~3 legacy files use
   the changed surface). New code uses nostr-tools v2 / NDK directly.
-- **Old sql.js workers** (`*.worker.js`) are orphaned/unused — delete in Phase 6.
+- **Old sql.js workers** were deleted on 2026-10-25 (see git history for `src/*.worker.js`).
 
 ## Done (committed on `overhaul`)
 - Vite/Pinia/NDK toolchain; NDK seam; signers NIP-07/46/nsec.

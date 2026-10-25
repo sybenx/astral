@@ -1,5 +1,5 @@
-// NDK singleton — the modern nostr core that replaces the hand-rolled
-// relay/db/query Web Worker pool (relay.worker.js + sql.js). One NDK instance
+// NDK singleton — the nostr core that replaced the 2022 hand-rolled
+// relay/db/query Web Worker pool (relay workers + sql.js). One NDK instance
 // owns relay connections, an IndexedDB (Dexie) cache, and the active signer.
 //
 // Ported from the zapcooking nostr.ts pattern, trimmed for astral.
@@ -9,9 +9,8 @@ import NDKCacheAdapterDexie from '@nostr-dev-kit/ndk-cache-dexie'
 import { schedulePrune } from './cachePrune'
 import { LocalStorage } from 'quasar'
 
-// Sensible, currently-alive default relays. The 2022 list in store/state.js is
-// mostly dead; these are the broadly-reachable relays the rest of the nostr
-// ecosystem leans on today.
+// Default relays (store/state.js builds its default and optional lists from
+// these): broadly reachable relays the rest of the nostr ecosystem leans on.
 export const DEFAULT_RELAYS = [
   'wss://relay.damus.io',
   'wss://nos.lol',
@@ -22,7 +21,7 @@ export const DEFAULT_RELAYS = [
 ]
 
 // Outbox/discovery relays used for resolving profiles and relay lists.
-const OUTBOX_RELAYS = ['wss://purplepag.es', 'wss://relay.nostr.band']
+const OUTBOX_RELAYS = ['wss://purplepag.es', 'wss://user.kindpag.es'] // relay.nostr.band is gone
 
 function storedRelayUrls() {
   // The legacy Vuex layer persists relays as { [url]: {read, write} }.
