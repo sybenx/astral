@@ -1,7 +1,8 @@
 # Vendored: Cosign sign-in and import (site side)
 
 Copied unchanged from [sybenx/cosign](https://github.com/sybenx/cosign) `main` at
-commit 7167bab (after Cosign 0.10.3; full hash in `COSIGN-COMMIT`):
+commit 5b2d454 (after 90aafcf, where the app became Marble; the protocol, servers and repository
+stay Cosign; full hash in `COSIGN-COMMIT`):
 
 - `src/pair.ts`, `src/ticket.ts`, `src/client.ts`: signing in with a phone
 - `src/import.ts`, `src/member.ts`, `src/servers.ts`: moving a key held by this page into Cosign

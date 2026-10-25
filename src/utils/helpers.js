@@ -140,9 +140,11 @@ export async function getEventIdTagWithRelay(eventId, ...appendedValues) {
 
 // Astral's voice is lowercase. Messages from shared code (Cosign, signers)
 // arrive capitalised, so lowercase their first letter for display, leaving
-// names like Cosign or Nostr alone.
+// names like Cosign or Nostr alone. The Marble app is written "marble" here.
 const KEEP_CAPITAL = /^(Cosign|Nostr|Amber|Clave|Alby|I)\b/
 export function lowerFirst(text) {
-  if (!text || KEEP_CAPITAL.test(text)) return text || ''
-  return text.charAt(0).toLowerCase() + text.slice(1)
+  if (!text) return ''
+  const t = text.replace(/\bMarble\b/g, 'marble')
+  if (KEEP_CAPITAL.test(t)) return t
+  return t.charAt(0).toLowerCase() + t.slice(1)
 }

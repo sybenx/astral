@@ -87,7 +87,7 @@
           <template v-else-if='onAndroid && !showCode'>
             <!-- A real link the user taps, so Android hands it to Cosign (App Links). -->
             <a :href='code' class='sign-in-button sign-in-link full-width'>open your signer app</a>
-            <span class='hint'>opens Cosign or your signer app. approve there, then come back here.</span>
+            <span class='hint'>opens marble or your signer app. approve there, then come back here.</span>
           </template>
           <template v-else>
             <div class='qr-frame bg-white'>

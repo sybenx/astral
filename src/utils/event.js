@@ -47,7 +47,7 @@ const SIGNER_TIMEOUT_MSG = 'Signer timed out — check your extension or sign in
 // A phone signer can hold a request for approval, or 10 s for Undo on a
 // deletion; Cosign answers within about 70 s, so wait a little longer.
 const PHONE_TIMEOUT_MS = 90_000
-const PHONE_TIMEOUT_MSG = "Your phone didn't answer. Check Cosign or your signer app, then try again."
+const PHONE_TIMEOUT_MSG = "your phone didn't answer. check marble or your signer app, then try again."
 const PHONE_WAIT_NOTICE_MS = 3_000
 
 function withSignerTimeout(promise, ms = SIGNER_TIMEOUT_MS, message = SIGNER_TIMEOUT_MSG) {

@@ -281,7 +281,7 @@ export class AuthManager {
       if (userPubkey !== expectedPubkey) {
         // Never switch accounts silently. The key wasn't removed, so nothing is lost.
         signer.close()
-        throw new Error('Cosign answered for a different account, so nothing was changed.')
+        throw new Error('marble answered for a different account, so nothing was changed.')
       }
       const user = this._bindRemoteSigner(signer, userPubkey)
       localStorage.removeItem(LS_PRIVKEY)
