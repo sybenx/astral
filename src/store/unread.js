@@ -67,10 +67,32 @@ export default function (store) {
   }
 
 
+  // Mentions and messages stream only while someone can see the page: they
+  // stop after 30s in a hidden tab and restart (recounting) when it's back.
+  const HIDDEN_GRACE = 30 * 1000
+  let hiddenTimer = null
+  let paused = false
+  const pause = () => {
+    for (const key of Object.keys(sub)) {
+      sub[key]?.cancel()
+      delete sub[key]
+    }
+    paused = true
+  }
+  document.addEventListener('visibilitychange', () => {
+    clearTimeout(hiddenTimer)
+    if (document.hidden) {
+      hiddenTimer = setTimeout(pause, HIDDEN_GRACE)
+    } else if (paused) {
+      paused = false
+      streamMentionsAndMessages()
+    }
+  })
+
   store.subscribeAction(({type, payload}, state) => {
     switch (type) {
       case 'restartMainSubscription':
-        streamMentionsAndMessages()
+        if (!paused) streamMentionsAndMessages()
         break
     }
   })
