@@ -282,6 +282,13 @@ export default defineComponent({
     this.$nextTick(this.placeFab)
     this._onResize = debounce(this.placeFab, 150)
     window.addEventListener('resize', this._onResize)
+    // the page also moves without a window resize: signing in shows the left menu
+    if (window.ResizeObserver) {
+      this._layoutObserver = new ResizeObserver(this._onResize)
+      for (const el of [document.querySelector('#left-drawer'), this.$refs.pageContainer?.$el]) {
+        if (el) this._layoutObserver.observe(el)
+      }
+    }
 
     // destroy streams before unloading window
     // window.onbeforeunload = async () => {
@@ -294,6 +301,7 @@ export default defineComponent({
 
   beforeUnmount() {
     window.removeEventListener('resize', this._onResize)
+    this._layoutObserver?.disconnect()
     if (this._onShown) document.removeEventListener('visibilitychange', this._onShown)
     document.querySelector('#left-drawer').removeEventListener('wheel', this.redirectScroll)
     // document.removeEventListener('visibilitychange', this.activateWindow())
