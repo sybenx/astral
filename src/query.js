@@ -262,13 +262,6 @@ export async function dbSave(/* event */) {
   return true
 }
 
-export async function dbQuery(/* sql */) {
-  // The raw-SQL cache (sql.js) was removed in the overhaul. Callers that ran
-  // ad-hoc SQL (DevTools, the kind-3 created_at guard) get an empty result.
-  console.warn('[query] dbQuery: raw SQL backend removed in overhaul')
-  return []
-}
-
 export async function dbEvent(id) {
   return fetchOne({ ids: [id] })
 }

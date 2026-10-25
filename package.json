@@ -27,7 +27,6 @@
     "@quasar/extras": "^1.16.9",
     "@scure/base": "^2.0.0",
     "buffer": "^6.0.3",
-    "codemirror": "5",
     "core-js": "^3.36.0",
     "dompurify": "^3.1.0",
     "emoji-mart-vue-fast": "^15.0.0",

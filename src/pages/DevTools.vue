@@ -10,10 +10,8 @@
         active-color='accent'
       >
         <q-tab name="keyConverter" label='key converter' />
-        <q-tab name="sqlQuery" label='sql query' />
         <q-tab name="nip05Tester" label='nip05 Tester' />
       </q-tabs>
-      <!-- <div class="text-bold">sql query</div> -->
       <q-tab-panels v-model="tab">
         <q-tab-panel name="keyConverter" class='flex column items-center full-width' style='gap: .5rem; background: var(--q-background)'>
           <q-input v-model='keys.bech32' filled dense label='enter "npub", "note" key here' class='full-width'>
@@ -33,9 +31,6 @@
           <q-btn spread label='convert' color='primary' outline class='full-width q-mt-md' @click='convertKeys'/>
         </q-tab-panel>
 
-        <q-tab-panel name="sqlQuery">
-          <TheSqlEditor/>
-        </q-tab-panel>
         <q-tab-panel name="nip05Tester">
           <q-input v-model='nip05Id' filled dense label='enter nip05 here' class='full-width'/>
           <q-btn spread label='test' color='primary' outline class='full-width q-mt-md' @click='fetchNip05'/>
@@ -51,7 +46,6 @@ import { defineComponent } from 'vue'
 import helpersMixin from '../utils/mixin'
 import { Notify, createMetaMixin } from 'quasar'
 import BaseButtonCopy from '../components/BaseButtonCopy'
-import TheSqlEditor from '../components/TheSqlEditor'
 import { nip05 } from 'nostr-tools'
 
 const metaData = {
@@ -72,7 +66,6 @@ export default defineComponent({
 
   components: {
     BaseButtonCopy,
-    TheSqlEditor,
     // BaseUserCard,
   },
 

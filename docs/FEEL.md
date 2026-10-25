@@ -57,8 +57,8 @@ A checklist for any change. The sources are the original astral (monlovesmango, 
 - **keep: you can look around without an account.** Closing the welcome dialog drops you into the
   global feed. [seen]
 - **keep: power-user doors left open.** Raw event view, which relays a note was seen on, the dev tools
-  page with its SQL editor, per-relay read/write, and drag to reorder follows. [seen] The SQL editor
-  has returned nothing since the Lunar overhaul removed its database (`dbQuery` returns `[]`).
+  page (key converter, NIP-05 tester), per-relay read/write, and drag to reorder follows. [seen] Its SQL
+  editor was removed on 2026-10-25: it had returned nothing since the overhaul removed its database.
 - **keep: the post ⋯ menu is labelled**, icon plus word: bookmark (or remove bookmark), copy link (a plain
   njump.me link anyone can open), share (the phone's share sheet, else copy), mute (or unmute, on other
   people's posts), translate (only when your own LibreTranslate server is set and the post looks like another
