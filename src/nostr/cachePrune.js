@@ -57,7 +57,10 @@ export function schedulePrune(getOwnPubkey) {
   let last = 0
   try { last = Number(localStorage.getItem(KEY)) || 0 } catch { /* storage blocked */ }
   if (Date.now() - last < DAY * 1000) return
-  const idle = window.requestIdleCallback || ((fn) => setTimeout(fn, 1000))
+  // the timeout: a busy or background tab may never report idle time
+  const idle = window.requestIdleCallback
+    ? (fn) => window.requestIdleCallback(fn, { timeout: 10 * 1000 })
+    : (fn) => setTimeout(fn, 1000)
   setTimeout(() => idle(async () => {
     try {
       await pruneCache(getOwnPubkey())
