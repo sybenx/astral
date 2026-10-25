@@ -46,7 +46,7 @@ quasar build -m pwa
 ```
 
 ### Build the app for production in SPA mode:
-Set `SITE_URL` (e.g. `SITE_URL=https://example.com`) so the social preview tags in `index.html` use absolute URLs. On Vercel it defaults to the production domain.
+Set `SITE_URL` (e.g. `SITE_URL=https://example.com`) so the social preview tags in `index.html` use absolute URLs.
 
 ```bash
 yarn build:spa
@@ -56,16 +56,12 @@ npm run build:spa
 quasar build
 ```
 
-## Docker
+## Deploy
 
-### Build the docker image (uses PWA mode):
+astral.syb.lol runs on a Cloudflare Worker (`wrangler.jsonc`): the PWA build is served as static assets, and `worker/index.js` answers `/api/*` (link previews).
+
 ```bash
-docker build -t astral .
+npm run deploy
 ```
 
-### Run the container:
-```bash
-docker run -d -p 8080:8000 --name astral astral
-```
-
-and connect to 'http://localhost:8080/'
+This builds in PWA mode and runs `wrangler deploy`.

@@ -10,11 +10,8 @@ import { join } from 'node:path'
 
 export default defineConfig((ctx) => {
   // Public origin used for absolute Open Graph URLs in index.html. Set SITE_URL
-  // at build time; on Vercel it falls back to the production domain.
-  const siteUrl = (
-    process.env.SITE_URL ||
-    (process.env.VERCEL_PROJECT_PRODUCTION_URL ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}` : '')
-  ).replace(/\/$/, '')
+  // at build time.
+  const siteUrl = (process.env.SITE_URL || '').replace(/\/$/, '')
 
   return {
     // Exposed to index.html as <%= siteUrl %>
