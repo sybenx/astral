@@ -36,8 +36,7 @@ function fetchBackupEvent(store) {
     }
     const sub = ndk.subscribe(
       { kinds: [KIND], authors: [store.state.keys.pub], '#d': [D_TAG] },
-      { closeOnEose: true, groupable: false, cacheUsage: NDKSubscriptionCacheUsage.PARALLEL },
-      relaySetFrom(userRelays(store))
+      { closeOnEose: true, groupable: false, cacheUsage: NDKSubscriptionCacheUsage.PARALLEL, relaySet: relaySetFrom(userRelays(store)) }
     )
     sub.on('event', (e) => {
       const raw = e.rawEvent ? e.rawEvent() : e

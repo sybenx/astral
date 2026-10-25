@@ -21,7 +21,7 @@
     "@noble/ciphers": "^2.1.1",
     "@noble/curves": "^2.0.1",
     "@noble/hashes": "^2.0.1",
-    "@nostr-dev-kit/ndk": "2.10.0",
+    "@nostr-dev-kit/ndk": "~2.18.1",
     "@nostr-dev-kit/ndk-cache-dexie": "^2.2.5",
     "@quasar/extras": "^1.16.9",
     "@scure/base": "^2.0.0",
@@ -67,5 +67,8 @@
     "node": ">= 18",
     "npm": ">= 9",
     "yarn": ">= 1.21.1"
+  },
+  "resolutions": {
+    "@nostr-dev-kit/ndk": "2.18.1"
   }
 }

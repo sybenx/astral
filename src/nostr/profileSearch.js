@@ -150,8 +150,7 @@ async function nip50Search(query, limit, relays, timeout) {
     const events = new Map()
     const sub = ndk.subscribe(
       { kinds: [0], search: query, limit },
-      { closeOnEose: true, groupable: false, cacheUsage: NDKSubscriptionCacheUsage.ONLY_RELAY },
-      relaySet
+      { closeOnEose: true, groupable: false, cacheUsage: NDKSubscriptionCacheUsage.ONLY_RELAY, relaySet }
     )
     const finish = () => {
       try { sub.stop() } catch (_) { /* ignore */ }

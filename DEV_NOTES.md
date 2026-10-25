@@ -141,6 +141,10 @@ all ~200 on open (ThePreferences). Images: `decoding='async'`, imeta alt text; i
   relay genuinely needs auth, then add `NDKRelayAuthPolicies.signIn({ndk})`.
 
 ## NDK / nostr modernization backlog (from a full audit — high→low)
+0. **(done 2026-10-24) NDK 2.10.0 → 2.18.1**, one copy (a yarn `resolutions` entry: ndk-cache-dexie pinned its own
+   2.15.2, so two NDKs were loaded). Relay sets go in `opts.relaySet` (the third argument is deprecated and
+   warns on every call). Kept on purpose: `collect()` (fetchEvents still hangs on `#p`) and the nostr-tools
+   BunkerSigner for bunker:// (Cosign uses its own client).
 1. **NIP-57 zaps → `NDKZapper`** (`src/nostr/zap.js`, `mixin.js:443`). M
 2. **Profile fetch queue → `NDKUser.fetchProfile()` batching** (`actions.js:371-410`). M
 3. **NIP-04/kind-4 DMs → NIP-17/NIP-44** (`actions.js:150`, `mixin.js:327`,

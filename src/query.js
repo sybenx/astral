@@ -35,7 +35,8 @@ function relaySet(relays) {
 }
 
 // Collect events from a one-shot subscription, resolving on EOSE OR after a
-// timeout. NDK 2.10's fetchEvents() can hang indefinitely for some filters
+// timeout. NDK's fetchEvents() can hang indefinitely for some filters (still so
+// in 2.18: a #p query gave no answer after 15s on 2026-10-24)
 // (notably tag filters like #p) when a relay never sends EOSE, which left pages
 // like Notifications blank. Driving the subscription ourselves guarantees the
 // promise always settles with whatever arrived.
@@ -59,8 +60,7 @@ function collect(filter, relays, { timeout = 4000, cacheUsage = NDKSubscriptionC
     }
     const sub = ndk.subscribe(
       filter,
-      { closeOnEose: true, groupable: false, cacheUsage },
-      relaySet(relays)
+      { closeOnEose: true, groupable: false, cacheUsage, relaySet: relaySet(relays) }
     )
     sub.on('event', (event) => {
       const raw = toRaw(event)
@@ -100,8 +100,7 @@ function makeStream(filterFn) {
       const { filter, relays } = filterFn(s)
       const subscription = ndk.subscribe(
         filter,
-        { closeOnEose: false, groupable: false },
-        relaySet(relays)
+        { closeOnEose: false, groupable: false, relaySet: relaySet(relays) }
       )
       subscription.on('event', (event) => {
         try {

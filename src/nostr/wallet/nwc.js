@@ -217,8 +217,7 @@ async function executeNip47Request(method, params = {}) {
   const relaySet = new NDKRelaySet(new Set([nwcRelay]), ndk)
   const sub = ndk.subscribe(
     { kinds: [23195], authors: [nwcWalletPubkey], '#p': [clientPubkey], '#e': [event.id] },
-    { closeOnEose: false },
-    relaySet
+    { closeOnEose: false, relaySet }
   )
 
   const responsePromise = new Promise((resolve, reject) => {

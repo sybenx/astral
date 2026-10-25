@@ -142,8 +142,7 @@ export function createFeed({
         // PARALLEL queries cache AND relays together: cached events paint instantly
         // while relays fill in fresh ones. (CACHE_FIRST can EOSE on an empty cache
         // before relays answer, yielding an empty page.)
-        { closeOnEose: true, groupable: false, cacheUsage: NDKSubscriptionCacheUsage.PARALLEL },
-        rs()
+        { closeOnEose: true, groupable: false, cacheUsage: NDKSubscriptionCacheUsage.PARALLEL, relaySet: rs() }
       )
       sub.on('event', (ev) => {
         const e = accept(ev)
@@ -160,8 +159,7 @@ export function createFeed({
     if (liveSub) return
     liveSub = ndk.subscribe(
       buildFilter({ since: newestAt + 1 }),
-      { closeOnEose: false, groupable: false },
-      rs()
+      { closeOnEose: false, groupable: false, relaySet: rs() }
     )
     liveSub.on('event', (ev) => {
       const e = accept(ev)
