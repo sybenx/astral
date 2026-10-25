@@ -238,7 +238,8 @@
           <!-- <div v-if='replyMode && replyMode !== "tip"' class='text-primary text-thin col q-pl-xs' style=' font-size: 90%; font-weight: 300;'>{{replyMode}}</div> -->
           <!-- <div class='flex row no-wrap full-width'> -->
             <q-tabs
-              v-model='replyMode'
+              :model-value='replyMode'
+              @update:model-value='onActionTab'
               class='text-secondary full-width'
               align='justify'
               unelevated
@@ -257,7 +258,7 @@
               </q-tab>
 
               <!-- like / reaction -->
-              <q-tab class='no-padding' :aria-label='hasReacted ? "reacted" : "react"' @click.stop='sendReaction'>
+              <q-tab name='like' class='no-padding' :aria-label='hasReacted ? "reacted" : "react"' @click.stop='sendReaction'>
                 <div class='flex row no-wrap items-center' style='gap: .3rem;'>
                   <q-icon
                     :name='hasReacted ? "favorite" : "favorite_border"'
@@ -270,7 +271,7 @@
               </q-tab>
 
               <!-- repost — tap opens popup: repost | quote -->
-              <q-tab aria-label='repost' class='no-padding' @click.stop>
+              <q-tab name='repost-menu' aria-label='repost' class='no-padding' @click.stop>
                 <q-icon name='repeat' :size='iconSize'/>
                 <q-tooltip>repost</q-tooltip>
                 <q-menu auto-close>
@@ -288,7 +289,7 @@
               </q-tab>
 
               <!-- zap -->
-              <q-tab class='no-padding' aria-label='tip' @click.stop='$store.getters.profileLud06(event.pubkey) ? showZapDialog = true : null'>
+              <q-tab name='zap' class='no-padding' aria-label='tip' @click.stop='$store.getters.profileLud06(event.pubkey) ? showZapDialog = true : null'>
                 <div class='flex row no-wrap items-center' style='gap: .3rem;'>
                   <q-icon
                     name='bolt'
@@ -315,7 +316,7 @@
               </q-tab>
 
               <!-- cancel active panel -->
-              <q-tab aria-label='cancel' v-if='replyMode && replyMode !== "tip"' class='no-padding' @click.stop='replyMode = null'>
+              <q-tab name='cancel' aria-label='cancel' v-if='replyMode && replyMode !== "tip"' class='no-padding' @click.stop='replyMode = null'>
                 <q-icon name='close' :size='iconSize' color='accent'/>
                 <q-tooltip>cancel</q-tooltip>
               </q-tab>
@@ -648,6 +649,13 @@ export default defineComponent({
       }
     },
 
+    // The action bar is a q-tabs, but only reply and the link tab open a panel.
+    // Like, repost (its own menu), zap (its dialog) and cancel act on their own;
+    // letting them become the tabs' value opened an empty reply editor.
+    onActionTab(name) {
+      if (name === 'reply' || name === 'embed') this.replyMode = name
+    },
+
     async toggleMute() {
       const mute = !this.authorMuted
       try {
@@ -676,6 +684,9 @@ export default defineComponent({
     async sendReaction() {
       if (this.hasReacted || this.reactSending || !this.$store.state.keys.pub) return
       this.reactSending = true
+      // shown at once, taken back if it can't be sent
+      this.hasReacted = true
+      this.reactionCount++
       try {
         const userStore = useUserStore()
         await userStore.publishEvent({
@@ -689,10 +700,10 @@ export default defineComponent({
           ],
           content: '+',
         })
-        this.hasReacted = true
-        this.reactionCount++
       } catch (err) {
-        this.$q.notify({ message: err?.message || 'Failed to send reaction.', color: 'negative' })
+        this.hasReacted = false
+        this.reactionCount = Math.max(0, this.reactionCount - 1)
+        this.$q.notify({ message: err?.message || 'couldn’t send the reaction', color: 'negative' })
       } finally {
         this.reactSending = false
       }
