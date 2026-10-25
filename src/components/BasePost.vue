@@ -76,44 +76,62 @@
       <div class='flex row no-wrap items-center post-info' style='z-index: 1;' @click.stop>
         <q-item-label v-if='clientName' class='q-pr-sm gt-xs text-secondary ellipsis' style='opacity: .55; font-size: 75%; max-width: 8rem;'>via {{ clientName }}</q-item-label>
         <q-item-label class='q-pr-xs' style='opacity: .8; font-size: 90%;'>{{ niceDate(event.created_at) }}</q-item-label>
-        <q-fab
-          ref='postMenu'
-          color='secondary'
-          icon='more_vert'
-          direction='down'
-          vertical-actions-align='right'
-          padding='xs'
+        <q-btn
           flat
           dense
-          @show='canBookmark && bookmarks.load($store)'
+          round
+          size='sm'
+          color='secondary'
+          icon='more_vert'
+          aria-label='post menu'
+          class='post-menu-button'
+          @click.stop
         >
-            <div v-if='canBookmark' style='background: var(--q-background);'>
-              <q-btn
-                flat
-                dense
-                no-caps
-                class='text-secondary full-width justify-start no-wrap bookmark-action'
-                :icon='bookmarked ? "bookmark" : "bookmark_border"'
-                :label='bookmarked ? "remove bookmark" : "bookmark"'
-                :loading='bookmarks.loading || bookmarks.saving'
-                @click.stop='toggleBookmark'
-              />
-            </div>
-            <div style='background: var(--q-background);'>
-              <BaseButtonInfo
-                button-class='text-secondary full-width justify-start no-wrap'
-                :event='event'
-                size='md'
-              />
-            </div>
-            <div style='background: var(--q-background);'>
-              <BaseButtonRelays
-                button-class='text-secondary full-width justify-start no-wrap'
-                :event='event'
-                size='md'
-              />
-            </div>
-        </q-fab>
+          <q-menu anchor='bottom right' self='top right' @show='onMenuShow'>
+            <q-list class='post-menu' style='min-width: 12rem;'>
+              <q-item v-if='canBookmark' v-close-popup clickable :disable='bookmarks.saving' @click='toggleBookmark'>
+                <q-item-section avatar><q-icon :name='bookmarked ? "bookmark" : "bookmark_border"'/></q-item-section>
+                <q-item-section>{{ bookmarked ? 'remove bookmark' : 'bookmark' }}</q-item-section>
+              </q-item>
+              <q-item v-close-popup clickable @click='copyLink'>
+                <q-item-section avatar><q-icon name='link'/></q-item-section>
+                <q-item-section>copy link</q-item-section>
+              </q-item>
+              <q-item v-close-popup clickable @click='sharePost'>
+                <q-item-section avatar><q-icon name='share'/></q-item-section>
+                <q-item-section>share</q-item-section>
+              </q-item>
+              <q-item v-if='canTranslate' v-close-popup clickable @click='translation ? (translation = null) : doTranslate()'>
+                <q-item-section avatar><q-icon name='translate'/></q-item-section>
+                <q-item-section>{{ translation ? 'hide translation' : 'translate' }}</q-item-section>
+              </q-item>
+              <q-item clickable>
+                <q-item-section avatar><q-icon name='more_horiz'/></q-item-section>
+                <q-item-section>more</q-item-section>
+                <q-item-section side><q-icon name='chevron_right'/></q-item-section>
+                <!-- opens beside the first menu; picking an item closes both -->
+                <q-menu anchor='top end' self='top start'>
+                  <q-list class='post-menu' style='min-width: 11rem;'>
+                    <q-item v-close-popup='2' clickable @click='$refs.infoButton?.toggleMetadataDialog()'>
+                      <q-item-section avatar><q-icon name='info'/></q-item-section>
+                      <q-item-section>metadata</q-item-section>
+                    </q-item>
+                    <q-item v-close-popup='2' clickable @click='$refs.relaysButton?.toggleRelayListDialog()'>
+                      <q-item-section avatar><q-icon name='sync_alt'/></q-item-section>
+                      <q-item-section>seen on relays</q-item-section>
+                    </q-item>
+                  </q-list>
+                </q-menu>
+              </q-item>
+            </q-list>
+          </q-menu>
+        </q-btn>
+        <!-- their dialogs, kept out of the menu so closing it doesn't close them;
+             mounted once the menu has been opened -->
+        <template v-if='menuUsed'>
+          <BaseButtonInfo ref='infoButton' v-show='false' :event='event'/>
+          <BaseButtonRelays ref='relaysButton' v-show='false' :event='event'/>
+        </template>
         <!-- <q-btn icon='more_vert' dense color='secondary' flat >
           <q-menu
             style='background: var(--q-background); padding: .2rem;'
@@ -175,7 +193,7 @@
         <!-- unknown kinds: show content text, not full raw JSON -->
         <pre v-else style='font-size: .75rem; white-space: pre-wrap; overflow: auto; opacity: .7;'>{{ event.content }}</pre>
         <!-- your own LibreTranslate server (settings), for posts in another language -->
-        <div v-if='canTranslate' class='translate-row' @click.stop>
+        <div v-if='translation || translating' class='translate-row' @click.stop>
           <template v-if='translation'>
             <div class='translated-text'>{{ translation.text }}</div>
             <span class='translate-meta'>
@@ -183,17 +201,7 @@
               <a href='#' class='translate-toggle' @click.prevent='translation = null'>hide translation</a>
             </span>
           </template>
-          <q-btn
-            v-else
-            flat
-            dense
-            no-caps
-            size='sm'
-            class='translate-toggle text-secondary'
-            label='translate'
-            :loading='translating'
-            @click='doTranslate'
-          />
+          <span v-else-if='translating' class='translate-meta'>translating…</span>
         </div>
         <div
           v-if='!isEmbeded && (isQuote || isRepost)'
@@ -368,7 +376,8 @@ import { fetchReactionsFromCache, fetchZapTotalFromCache } from '../nostr/reacti
 import { useUserStore } from '../stores/user'
 import { useBookmarksStore } from '../stores/bookmarks'
 import { translateState, looksTranslatable, translate } from '../utils/translate'
-import { Notify } from 'quasar'
+import { Notify, copyToClipboard } from 'quasar'
+import { nip19 } from 'nostr-tools'
 
 export default defineComponent({
   name: 'BasePost',
@@ -395,6 +404,7 @@ export default defineComponent({
     return {
       translation: null, // { text, from } once translated
       translating: false,
+      menuUsed: false,
       clicking: false,
       replying: false,
       childReplyHeights: [],
@@ -539,8 +549,6 @@ export default defineComponent({
   },
 
   mounted() {
-    // QFab hands only its props to the ⋮ button, so name that button directly
-    this.$refs.postMenu?.$el?.querySelector?.('.q-btn')?.setAttribute('aria-label', 'post menu')
     if (!this.isEmbeded && (this.isQuote || this.isRepost)) {
       if (!Array.isArray(this.reposts)) this.reposts = []
       this.processTaggedEvents(this.mentionEvents, this.reposts)
@@ -566,6 +574,34 @@ export default defineComponent({
   // },
 
   methods: {
+    onMenuShow() {
+      this.menuUsed = true
+      if (this.canBookmark) this.bookmarks.load(this.$store)
+    },
+
+    // a plain web link anyone can open, Nostr app or not
+    postLink() {
+      const nevent = nip19.neventEncode({ id: this.event.id, author: this.event.pubkey, kind: this.event.kind })
+      return `https://njump.me/${nevent}`
+    },
+
+    copyLink() {
+      copyToClipboard(this.postLink()).then(() => Notify.create({ message: 'link copied' }))
+    },
+
+    async sharePost() {
+      const url = this.postLink()
+      if (navigator.share) {
+        try {
+          await navigator.share({ url })
+          return
+        } catch (e) {
+          if (e?.name === 'AbortError') return // closed the share sheet
+        }
+      }
+      this.copyLink()
+    },
+
     async doTranslate() {
       this.translating = true
       try {

@@ -59,6 +59,12 @@ A checklist for any change. The sources are the original astral (monlovesmango, 
 - **keep: power-user doors left open.** Raw event view, which relays a note was seen on, the dev tools
   page with its SQL editor, per-relay read/write, and drag to reorder follows. [seen] The SQL editor
   has returned nothing since the Lunar overhaul removed its database (`dbQuery` returns `[]`).
+- **keep: the post ⋯ menu is labelled**, icon plus word: bookmark (or remove bookmark), copy link (a plain
+  njump.me link anyone can open), share (the phone's share sheet, else copy), translate (only when your own
+  LibreTranslate server is set and the post looks like another language), and more › for metadata and
+  seen on relays. [confirmed]
+- **keep: bookmarks are the standard Nostr list**, so they follow the account to other apps, with their own
+  page in the menu. Translation only ever goes through a server the reader sets up. [confirmed]
 - **keep: nothing pushy.** No permission prompts on load, no autoplay with sound. Astral can be
   installed to the home screen, but it never asks or shows an install banner. [no install nag confirmed]
   Lightning tips can be turned off in settings. [tips toggle seen; the rest a guess]
