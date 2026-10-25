@@ -1,5 +1,5 @@
 <template>
-  <q-page class='fit flex column no-wrap'>
+  <q-page class='search-follow fit flex column no-wrap'>
     <TheSearchMenu />
   </q-page>
 </template>
@@ -28,3 +28,12 @@ export default {
   }
 }
 </script>
+
+<style lang='scss' scoped>
+// phones: the floating nav buttons sit at the top right, over the search box
+@media screen and (max-width: 599px) {
+  .search-follow {
+    padding-top: 56px;
+  }
+}
+</style>

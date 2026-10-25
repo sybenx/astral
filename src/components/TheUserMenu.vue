@@ -255,7 +255,8 @@ export default defineComponent({
 
   computed: {
     filteredUserMenuItems() {
-      if (!this.$store.state.keys.pub) return this.userMenuItems.filter(item => item.title === 'feed')
+      // looking around without an account: the feed, and search on phones
+      if (!this.$store.state.keys.pub) return this.userMenuItems.filter(item => item.title === 'feed' || (item.title === 'follow' && this.compactMode))
       if (!this.compactMode && !this.showCompactModeItems) return this.userMenuItems.filter(item => !item.compactMenuOnly)
       return this.userMenuItems
     },
