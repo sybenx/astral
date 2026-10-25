@@ -1,4 +1,4 @@
-import Identicon from 'identicon.js'
+import { identiconFor } from '../utils/avatar'
 import * as helpersMixin from '../utils/mixin'
 import * as utils from '../utils/lnurl'
 
@@ -47,12 +47,7 @@ export function NIP05Id(state) {
 }
 
 export function avatar(state) {
-  return pubkey => {
-    let {
-      picture = 'data:image/png;base64,' + new Identicon(pubkey, 40).toString()
-    } = state.profilesCache[pubkey] || {}
-    return picture
-  }
+  return pubkey => state.profilesCache[pubkey]?.picture || identiconFor(pubkey, state.config?.preferences?.color)
 }
 
 export function profileDescription(state) {

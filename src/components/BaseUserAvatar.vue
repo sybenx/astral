@@ -1,7 +1,7 @@
 <template>
   <div :class='(bordered ? "bordered-avatar" : "") + (hoverEffect ? " hovered-avatar" : "")'>
     <q-avatar :rounded='!round' class='relative-position' :size='size' @click.stop="toProfile(pubkey)">
-      <img :src="$store.getters.avatar(pubkey)" loading='lazy' async/>
+      <img :src='src' alt='' loading='lazy' decoding='async' @load='onLoad' @error='onError'/>
       <div :class='alignRight ? "icon-right" : "icon-left"' class='q-pt-xs'>
         <BaseButtonNIP05
           v-if='showVerified'
@@ -16,6 +16,7 @@
 <script>
 import helpersMixin from '../utils/mixin'
 import BaseButtonNIP05 from 'components/BaseButtonNIP05.vue'
+import { identiconFor, isDeadHost, markImageFailed, markImageLoaded } from '../utils/avatar'
 
 export default {
   mixins: [helpersMixin],
@@ -30,6 +31,41 @@ export default {
     bordered: {type: Boolean, default: false},
     showVerified: {type: Boolean, default: false},
     hoverEffect: {type: Boolean, default: false},
+  },
+
+  data() {
+    return { failed: false }
+  },
+
+  computed: {
+    picture() {
+      return this.$store.state.profilesCache[this.pubkey]?.picture || ''
+    },
+    identicon() {
+      return identiconFor(this.pubkey, this.$store.state.config?.preferences?.color)
+    },
+    // the profile picture, unless it's missing, failed, or on a host that keeps failing
+    src() {
+      if (!this.picture || this.failed || isDeadHost(this.picture)) return this.identicon
+      return this.picture
+    },
+  },
+
+  watch: {
+    picture() {
+      this.failed = false
+    },
+  },
+
+  methods: {
+    onLoad() {
+      if (this.src === this.picture) markImageLoaded(this.picture)
+    },
+    onError() {
+      if (this.src !== this.picture) return
+      markImageFailed(this.picture)
+      this.failed = true
+    },
   },
 }
 </script>

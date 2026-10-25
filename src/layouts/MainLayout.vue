@@ -22,7 +22,7 @@
           :posting='postEntryOpen'
           @toggle-post-entry='togglePostEntry'
           @scroll-to-rect='scrollToRect'
-          @set-user='lookingAround=false'
+          @set-user='openSignIn'
         />
       </div>
 
@@ -85,7 +85,7 @@
         :posting='postEntryOpen'
         @toggle-post-entry='togglePostEntry'
         @scroll-to-rect='scrollToRect'
-        @set-user='lookingAround=false'
+        @set-user='openSignIn'
       />
     </q-page-sticky>
     <q-page-sticky position="top-right" :offset="fabPos" id='navagation-buttons'>
@@ -157,10 +157,18 @@
 
 <script>
 import { defineComponent} from 'vue'
-import { scroll, useQuasar } from 'quasar'
+import { scroll, useQuasar, debounce } from 'quasar'
 const { getVerticalScrollPosition, setVerticalScrollPosition} = scroll
 // smooth scrolling, unless the system asks for reduced motion
 const scrollMs = () => (window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ? 0 : 500)
+
+const LOOKING_AROUND = 'astral.lookingAround'
+function readSessionFlag(key) {
+  try { return sessionStorage.getItem(key) === '1' } catch { return false }
+}
+function writeSessionFlag(key, on) {
+  try { on ? sessionStorage.setItem(key, '1') : sessionStorage.removeItem(key) } catch { /* storage blocked */ }
+}
 import TheUserMenu from 'components/TheUserMenu.vue'
 import TheSearchMenu from 'components/TheSearchMenu.vue'
 import TheKeyInitializationDialog from 'components/TheKeyInitializationDialog.vue'
@@ -198,7 +206,13 @@ export default defineComponent({
       replyEvent: null,
       googleFontsName: '',
       updatingFont: true,
-      lookingAround: false,
+      // The welcome dialog opens on the feed only: someone following a link to a
+      // profile, thread or hashtag came to see that page. Closing it ("look
+      // around") holds for the rest of the session.
+      lookingAround: this.$route.name !== 'feed' || readSessionFlag(LOOKING_AROUND),
+      // never start the dialog's opening animation in a hidden tab, where it
+      // would sit half-drawn until the tab is shown
+      pageShown: !document.hidden,
     }
   },
 
@@ -214,7 +228,7 @@ export default defineComponent({
       } else return null
     },
     initializeKeys() {
-      return !this.lookingAround
+      return !this.lookingAround && this.pageShown
     }
   },
 
@@ -257,8 +271,17 @@ export default defineComponent({
       if (to.path === from.path) return
       this.restoreScrollPos(to, from)
     })
-    let pageRect = this.$refs.pageContainer?.$el.getBoundingClientRect()
-    if (pageRect) this.fabPos[0] = pageRect.right - pageRect.width
+    if (!this.pageShown) {
+      this._onShown = () => {
+        if (document.hidden) return
+        this.pageShown = true
+        document.removeEventListener('visibilitychange', this._onShown)
+      }
+      document.addEventListener('visibilitychange', this._onShown)
+    }
+    this.$nextTick(this.placeFab)
+    this._onResize = debounce(this.placeFab, 150)
+    window.addEventListener('resize', this._onResize)
 
     // destroy streams before unloading window
     // window.onbeforeunload = async () => {
@@ -270,6 +293,8 @@ export default defineComponent({
   },
 
   beforeUnmount() {
+    window.removeEventListener('resize', this._onResize)
+    if (this._onShown) document.removeEventListener('visibilitychange', this._onShown)
     document.querySelector('#left-drawer').removeEventListener('wheel', this.redirectScroll)
     // document.removeEventListener('visibilitychange', this.activateWindow())
     // window.onfocus = null
@@ -301,6 +326,16 @@ export default defineComponent({
 
     forward() {
       this.$router.go(1)
+    },
+
+    // Keep the back / top / forward buttons inside the page column, at its
+    // right edge, so they never cover the search box in the right column.
+    // (The old offset was the column's left edge, which only lined up when
+    // the layout happened to be centred.)
+    placeFab() {
+      const rect = this.$refs.pageContainer?.$el?.getBoundingClientRect()
+      if (!rect) return
+      this.fabPos = [Math.max(0, Math.round(window.innerWidth - rect.right)), 10]
     },
 
     moveFab(ev) {
@@ -419,6 +454,11 @@ export default defineComponent({
     },
     setLookingAroundMode() {
       this.lookingAround = true
+      writeSessionFlag(LOOKING_AROUND, true)
+    },
+    openSignIn() {
+      this.lookingAround = false
+      writeSessionFlag(LOOKING_AROUND, false)
     },
     async enableWebLn() {
       try {

@@ -8,6 +8,7 @@ import {nip04, nip19} from 'nostr-tools'
 import { bech32 } from '@scure/base'
 import { bytesToHex } from '@noble/hashes/utils.js'
 import DOMPurify from 'dompurify'
+import { identiconFor } from './avatar'
 import { Buffer } from 'buffer'
 import * as utils from './lnurl'
 import { fetchZapInvoice } from '../nostr/zap'
@@ -245,7 +246,7 @@ export default {
           return `
             <div class="flex row no-wrap items-center" style="gap: .2rem; width: 100%;">
               <div style="border-radius: 10px">
-                <img src=${this.$store.getters.avatar(item.original.value.pubkey)} style="object-fit: cover; height: 1.5rem; width: 1.5rem;"/>
+                <img src="${this.$store.getters.avatar(item.original.value.pubkey)}" onerror="this.onerror=null;this.src='${identiconFor(item.original.value.pubkey, this.$store.state.config?.preferences?.color)}'" style="object-fit: cover; height: 1.5rem; width: 1.5rem;"/>
               </div>
                 <div class="text-bold">${item.string}</div>
               ${this.$store.state.follows.includes(item.original.value.pubkey)
