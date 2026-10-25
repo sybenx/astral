@@ -158,6 +158,34 @@
     </div>
 
     <q-separator color='accent'/>
+    <div class='section'>
+      <div class="text-bold" style='font-size: 1.1rem;'>translate</div>
+      <p class='text-secondary q-my-xs' style='font-size: .85rem;'>
+        translate with your own libretranslate server. posts in other languages then get a “translate” link.
+        saved in this browser only.
+      </p>
+      <q-form class='flex column' style='gap: .5rem;' @submit.prevent='saveTranslate'>
+        <q-input
+          v-model='translateUrl'
+          dense
+          outlined
+          type='url'
+          inputmode='url'
+          autocomplete='off'
+          label='server address (https://…)'
+          :error='!!translateError'
+          :error-message='translateError'
+        />
+        <q-input v-model='translateKey' dense outlined type='password' autocomplete='off' label='api key (optional)'/>
+        <div class='flex row items-center' style='gap: .5rem;'>
+          <q-btn type='submit' outline no-caps color='primary' label='save' :loading='translateTesting' style='min-height: 44px;'/>
+          <q-btn v-if='translateSaved' flat no-caps color='secondary' label='remove' style='min-height: 44px;' @click='clearTranslate'/>
+          <span v-if='translateStatus' class='text-secondary' style='font-size: .85rem;'>{{ translateStatus }}</span>
+        </div>
+      </q-form>
+    </div>
+
+    <q-separator color='accent'/>
       <q-expansion-item
         dense
         expand-icon='help'
@@ -238,6 +266,7 @@ import ThePreferences from 'components/ThePreferences.vue'
 import { createMetaMixin } from 'quasar'
 import * as utils from '../utils/lnurl'
 import { getAuthManager } from '../nostr/authManager'
+import { getTranslateSettings, saveTranslateSettings, normalizeServerUrl, translate } from '../utils/translate'
 import ndk from '../nostr/ndk'
 
 const metaData = {
@@ -264,7 +293,14 @@ export default {
   },
 
   data() {
+    const t = getTranslateSettings()
     return {
+      translateUrl: t.url,
+      translateKey: t.apiKey,
+      translateSaved: !!t.url,
+      translateTesting: false,
+      translateError: '',
+      translateStatus: '',
       keysDialog: false,
       editingMetadata: false,
       metadata: {},
@@ -370,6 +406,42 @@ export default {
   },
 
   methods: {
+    // Check the server answers before keeping it: one tiny translation.
+    async saveTranslate() {
+      this.translateError = ''
+      this.translateStatus = ''
+      let url
+      try {
+        url = normalizeServerUrl(this.translateUrl)
+      } catch (e) {
+        this.translateError = e.message
+        return
+      }
+      if (!url) return this.clearTranslate()
+      const previous = getTranslateSettings()
+      this.translateTesting = true
+      try {
+        saveTranslateSettings({ url, apiKey: this.translateKey })
+        const { text } = await translate('hola, buenos días')
+        this.translateUrl = url
+        this.translateSaved = true
+        this.translateStatus = `saved. test: “hola, buenos días” → “${text}”`
+      } catch (e) {
+        saveTranslateSettings(previous) // keep what worked before
+        this.translateError = `couldn’t reach that server: ${e?.message || e}`
+      } finally {
+        this.translateTesting = false
+      }
+    },
+    clearTranslate() {
+      saveTranslateSettings({ url: '' })
+      this.translateUrl = ''
+      this.translateKey = ''
+      this.translateSaved = false
+      this.translateError = ''
+      this.translateStatus = 'removed.'
+    },
+
     cloneMetadata() {
       this.metadata = Object.assign({}, this.$store.state.profilesCache[this.$store.state.keys.pub])
       // this.metadata = {name, picture, about, nip05}

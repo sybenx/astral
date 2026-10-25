@@ -72,6 +72,7 @@ export default {
   // pages
   feed: 'feed',
   notifications: 'notifications',
+  bookmarks: 'bookmarks',
   messages: 'messages',
   inbox: 'inbox',
   settings: 'settings',

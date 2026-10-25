@@ -11,6 +11,11 @@ const routes = [
         name: 'feed',
       },
       {
+        path: '/bookmarks',
+        component: () => import('pages/Bookmarks.vue'),
+        name: 'bookmarks',
+      },
+      {
         path: '/follow',
         component: () => import('pages/SearchFollow.vue'),
         name: 'follow',

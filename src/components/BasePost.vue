@@ -85,8 +85,20 @@
           padding='xs'
           flat
           dense
-
+          @show='canBookmark && bookmarks.load($store)'
         >
+            <div v-if='canBookmark' style='background: var(--q-background);'>
+              <q-btn
+                flat
+                dense
+                no-caps
+                class='text-secondary full-width justify-start no-wrap bookmark-action'
+                :icon='bookmarked ? "bookmark" : "bookmark_border"'
+                :label='bookmarked ? "remove bookmark" : "bookmark"'
+                :loading='bookmarks.loading || bookmarks.saving'
+                @click.stop='toggleBookmark'
+              />
+            </div>
             <div style='background: var(--q-background);'>
               <BaseButtonInfo
                 button-class='text-secondary full-width justify-start no-wrap'
@@ -162,6 +174,27 @@
         <template v-else-if="event.kind === 6" />
         <!-- unknown kinds: show content text, not full raw JSON -->
         <pre v-else style='font-size: .75rem; white-space: pre-wrap; overflow: auto; opacity: .7;'>{{ event.content }}</pre>
+        <!-- your own LibreTranslate server (settings), for posts in another language -->
+        <div v-if='canTranslate' class='translate-row' @click.stop>
+          <template v-if='translation'>
+            <div class='translated-text'>{{ translation.text }}</div>
+            <span class='translate-meta'>
+              translated{{ translation.from ? ' from ' + translation.from : '' }} ·
+              <a href='#' class='translate-toggle' @click.prevent='translation = null'>hide translation</a>
+            </span>
+          </template>
+          <q-btn
+            v-else
+            flat
+            dense
+            no-caps
+            size='sm'
+            class='translate-toggle text-secondary'
+            label='translate'
+            :loading='translating'
+            @click='doTranslate'
+          />
+        </div>
         <div
           v-if='!isEmbeded && (isQuote || isRepost)'
           class='reposts flex column q-pr-md'
@@ -333,6 +366,9 @@ import BaseLightningCard from 'components/BaseLightningCard.vue'
 import DOMPurify from 'dompurify'
 import { fetchReactionsFromCache, fetchZapTotalFromCache } from '../nostr/reactions'
 import { useUserStore } from '../stores/user'
+import { useBookmarksStore } from '../stores/bookmarks'
+import { translateState, looksTranslatable, translate } from '../utils/translate'
+import { Notify } from 'quasar'
 
 export default defineComponent({
   name: 'BasePost',
@@ -357,6 +393,8 @@ export default defineComponent({
 
   data() {
     return {
+      translation: null, // { text, from } once translated
+      translating: false,
       clicking: false,
       replying: false,
       childReplyHeights: [],
@@ -377,6 +415,19 @@ export default defineComponent({
   },
 
   computed: {
+    bookmarks() {
+      return useBookmarksStore()
+    },
+    // signed in with something that can sign (not a watch-only public key)
+    canBookmark() {
+      return !!this.$store.state.keys.pub && useUserStore().canSign && this.event.kind !== 4
+    },
+    bookmarked() {
+      return this.bookmarks.has(this.event.id)
+    },
+    canTranslate() {
+      return translateState.enabled && this.event.kind === 1 && looksTranslatable(this.event.content)
+    },
     iconSize() {
       return this.highlighted ? '22px' : '18px'
     },
@@ -515,6 +566,26 @@ export default defineComponent({
   // },
 
   methods: {
+    async doTranslate() {
+      this.translating = true
+      try {
+        this.translation = await translate(this.event.content)
+      } catch (e) {
+        Notify.create({ message: `couldn’t translate: ${e?.message || e}`, color: 'negative' })
+      } finally {
+        this.translating = false
+      }
+    },
+
+    async toggleBookmark() {
+      try {
+        const added = await this.bookmarks.toggle(this.$store, this.event.id)
+        if (added !== null) Notify.create({ message: added ? 'bookmarked' : 'bookmark removed' })
+      } catch (e) {
+        Notify.create({ message: e?.message || String(e), color: 'negative' })
+      }
+    },
+
     async loadReactions() {
       const myPub = this.$store.state.keys.pub
       const reactions = await fetchReactionsFromCache(this.event.id)
@@ -733,6 +804,31 @@ export default defineComponent({
 }
 
 @media screen and (min-width: 600px) {
+}
+
+.translate-row {
+  padding: 0 1.5rem;
+}
+.translate-toggle {
+  min-height: 44px;
+}
+.translated-text {
+  white-space: pre-wrap;
+  padding: .25rem 0;
+  border-left: 2px solid var(--q-accent);
+  padding-left: .5rem;
+}
+.translate-meta {
+  display: inline-flex;
+  align-items: center;
+  gap: .25rem;
+  font-size: .8rem;
+  color: var(--q-secondary);
+}
+.translate-meta a {
+  display: inline-flex;
+  align-items: center;
+  color: var(--q-primary);
 }
 </style>
 

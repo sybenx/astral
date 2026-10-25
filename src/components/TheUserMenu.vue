@@ -211,6 +211,12 @@ export default defineComponent({
           match: 'notifications',
         },
         {
+          title: 'bookmarks',
+          icon: 'bookmarks',
+          to: '/bookmarks',
+          match: 'bookmarks',
+        },
+        {
           title: 'messages',
           badge: 'unreadChats',
           icon: 'mail_lock',

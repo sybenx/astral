@@ -191,6 +191,18 @@ all ~200 on open (ThePreferences). Images: `decoding='async'`, imeta alt text; i
   same-origin request (Sec-Fetch-Site, Referer fallback).
 - `quasar dev` proxies `/api` to the deployed site. microlink.io is gone.
 
+## Bookmarks and translation (since 2026-10-24)
+- Bookmarks are the NIP-51 bookmark list (kind 10003), `src/stores/bookmarks.js` (Pinia). A toggle adds or
+  removes only that note's `e` tag; all other tags and the encrypted `content` are carried over. It refuses
+  to publish until the existing list is confirmed (`dbBookmarkList` reports whether relays answered with
+  EOSE), so a slow relay can't make it overwrite someone's list. Page: `/bookmarks` (`pages/Bookmarks.vue`).
+  "bookmark / remove bookmark" sits first in the post ⋮ menu.
+- Translation uses the user's own LibreTranslate server: `src/utils/translate.js`, set in Settings
+  (https only, URL + optional API key, localStorage `astral.libretranslate`, empty by default).
+  Requests are form-encoded (no CORS preflight) and retried on 502/503/504 or network errors.
+  `looksTranslatable` decides which posts get the "translate" link (non-Latin scripts, accented text with
+  few English words, or common es/pt/fr/de/it/nl words). There was no earlier translate path to keep.
+
 ## Gotchas
 - `$primary` is **white** (#ffffff) → any FILLED `q-btn color="primary"` is
   white-on-white. Use `text-color="dark"` or `outline`.

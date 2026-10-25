@@ -43,7 +43,8 @@ function collect(filter, relays, { timeout = 4000, cacheUsage = NDKSubscriptionC
   return new Promise((resolve) => {
     const events = new Map()
     let settled = false
-    const finish = () => {
+    // `eose` on the result: relays finished answering (true) or the timeout hit (false)
+    const finish = (eose = false) => {
       if (settled) return
       settled = true
       clearTimeout(timer)
@@ -52,7 +53,9 @@ function collect(filter, relays, { timeout = 4000, cacheUsage = NDKSubscriptionC
       } catch (_) {
         /* already stopped */
       }
-      resolve([...events.values()])
+      const result = [...events.values()]
+      result.eose = eose
+      resolve(result)
     }
     const sub = ndk.subscribe(
       filter,
@@ -63,8 +66,8 @@ function collect(filter, relays, { timeout = 4000, cacheUsage = NDKSubscriptionC
       const raw = toRaw(event)
       if (raw && raw.id) events.set(raw.id, raw)
     })
-    sub.on('eose', finish)
-    const timer = setTimeout(finish, timeout)
+    sub.on('eose', () => finish(true))
+    const timer = setTimeout(() => finish(false), timeout)
   })
 }
 
@@ -276,6 +279,15 @@ export async function dbProfile(pubkey) {
 
 export async function dbFollows(pubkey) {
   return fetchMany({ kinds: [3], authors: [pubkey], limit: 1 })
+}
+
+// NIP-51 bookmark list (kind 10003), newest wins. `answered` says whether the
+// relays finished replying, so "no list yet" can be told from "no answer".
+export async function dbBookmarkList(pubkey, relays) {
+  await connect()
+  const events = await collect({ kinds: [10003], authors: [pubkey] }, relays, { ...FRESH, timeout: 6000 })
+  const event = events.reduce((newest, e) => (!newest || e.created_at > newest.created_at ? e : newest), null)
+  return { event, answered: events.eose === true }
 }
 
 // NIP-65 relay list (kind 10002) — newest wins.
