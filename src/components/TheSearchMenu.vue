@@ -144,6 +144,8 @@ const REORDER_CAP = 300
 
 
 const DOMAIN_PAGE = 50 // NIP-05 domain users shown and fetched at a time
+const BECH32_ENTITY = /(npub1|nprofile1|note1|nevent1)[02-9ac-hj-np-z]{20,}/i
+const NIP05_ADDRESS = /^[\w.+-]+@[\w-]+(\.[\w-]+)*\.[a-z]{2,}$/i
 export default defineComponent({
   name: 'TheSearchMenu',
   mixins: [helpersMixin],
@@ -166,7 +168,12 @@ export default defineComponent({
   },
 
   created() {
-    this.debouncedNameSearch = debounce((q) => this.runNameSearch(q), 400)
+    this.debouncedNameSearch = debounce((q) => this.runNameSearch(q), 300)
+    this.debouncedNip05 = debounce((q) => this.resolveNip05(q), 400)
+  },
+
+  beforeUnmount() {
+    this.cancelSearch()
   },
 
   computed: {
@@ -194,11 +201,17 @@ export default defineComponent({
   },
 
   watch: {
+    // search as you type: a pasted npub / nprofile / note / nevent (bare, nostr:,
+    // or inside a link) opens at once, a NIP-05 address resolves to its profile,
+    // anything else is a name search
     searchingProfile(val) {
       const q = (val || '').trim()
+      this.cancelSearch()
       if (q.length < 2) { this.clearResults(); return }
+      if (this.openPastedEntity(q)) return
       if (q.match(/^[a-f0-9]{64}$/i)) return
-      if (/^(npub|nsec|note|nevent|nprofile)1/.test(q)) return
+      if (/^(nostr:)?(nsec|npub|nprofile|note|nevent)1/i.test(q)) return // still being typed
+      if (NIP05_ADDRESS.test(q)) { this.debouncedNip05(q); return }
       if (q.includes('@') || /\.[a-z]{2,}$/i.test(q)) return
       this.debouncedNameSearch(q)
     },
@@ -213,15 +226,66 @@ export default defineComponent({
     },
 
     async runNameSearch(query) {
+      this.cancelSearch()
+      const ctrl = new AbortController()
+      this.searchCtrl = ctrl
       this.searching = true
-      try {
-        const profiles = await searchProfiles(query, 10)
-        for (const p of profiles) this.$store.commit('addProfileToCache', p)
+      const show = (profiles) => {
+        if (ctrl.signal.aborted) return
+        for (const p of profiles) {
+          if (!this.$store.state.profilesCache[p.pubkey]) this.$store.commit('addProfileToCache', p)
+        }
         this.searchResults = profiles.map((p) => p.pubkey)
+      }
+      try {
+        const profiles = await searchProfiles(query, {
+          limit: 10,
+          follows: this.$store.state.follows,
+          cached: this.$store.state.profilesCache,
+          onResults: show,
+          signal: ctrl.signal,
+        })
+        show(profiles)
       } catch (e) {
         console.warn('[search] name search failed', e)
       } finally {
-        this.searching = false
+        if (this.searchCtrl === ctrl) this.searching = false
+      }
+    },
+
+    cancelSearch() {
+      if (this.searchCtrl) this.searchCtrl.abort()
+      this.searchCtrl = null
+      this.searching = false
+    },
+
+    openPastedEntity(q) {
+      if (/\s/.test(q)) return false
+      const m = BECH32_ENTITY.exec(q)
+      if (!m) return false
+      const entity = m[0].toLowerCase()
+      const hex = this.bech32ToHex(entity)
+      if (!hex || !/^[a-f0-9]{64}$/i.test(hex)) return false
+      if (entity.startsWith('npub') || entity.startsWith('nprofile')) this.toProfile(hex)
+      else this.toEvent(hex)
+      this.searchingProfile = ''
+      this.clearResults()
+      return true
+    },
+
+    async resolveNip05(q) {
+      this.searching = true
+      try {
+        const res = await nip05.queryProfile(q)
+        if (this.searchingProfile.trim() !== q) return
+        if (res?.pubkey) {
+          this.loadProfile(res.pubkey)
+          this.searchResults = [res.pubkey]
+        }
+      } catch (_) {
+        /* not a NIP-05 that answers */
+      } finally {
+        if (this.searchingProfile.trim() === q) this.searching = false
       }
     },
 

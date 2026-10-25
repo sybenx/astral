@@ -1,20 +1,28 @@
-// Profile search: Primal's public cache (user_search) and syb.lol's NIP-50
-// search, asked in parallel. Compared on 2026-10-24 (jack, fiatjaf, odell,
-// kat@x21.social, gigi, "derek ross"): Primal ranks best (the person you mean
-// first) but returns nothing for multi-word names; syb.lol is fastest and finds
-// those, with weaker ranking for common names. So Primal's order comes first,
-// then syb.lol's extras. search.nos.today (slow, noisy) is a last resort only;
-// relay.nostr.band (dead) and relay.noswhere.com (returns nothing) are gone.
+// Search: wss://relay.ditto.pub and wss://syb.lol over NIP-50, the pair the
+// Wisp fork settled on. Compared on 2026-10-24 (jack, fiatjaf, odell,
+// kat@x21.social, gigi, "derek ross", "alex gleason"): both answer in ~200–350ms
+// and find multi-word names, Ditto with the bigger index, but neither ranks —
+// same-name copies with no NIP-05 come first. Primal's cache ranks well but
+// errors on multi-word names, so it's kept only as a ranking helper: its order
+// and its follower counts feed searchRank.js.
 //
-// REQ format: ["REQ", "<id>", { cache: ["user_search", { query, limit }] }]
+// Results stream: people you follow who match show at once, relay results are
+// added as they arrive, the ranked list follows once NIP-05s and follower counts
+// are in, and anything slower is added at the end rather than dropped.
 
 import ndk, { connect } from './ndk'
-import { NDKSubscriptionCacheUsage } from '@nostr-dev-kit/ndk'
+import { NDKRelaySet, NDKSubscriptionCacheUsage } from '@nostr-dev-kit/ndk'
+import { rankProfiles, matchesQuery, verifyNip05, parseProfile, isBridged } from './searchRank'
+
+export const SEARCH_RELAYS = ['wss://relay.ditto.pub', 'wss://syb.lol']
 
 const PRIMAL_ENDPOINTS = ['wss://cache2.primal.net/v1', 'wss://cache1.primal.net/v1']
-const NIP50_PRIMARY = ['wss://syb.lol']
-const NIP50_LAST_RESORT = ['wss://search.nos.today']
+const RELAY_WAIT = 2500 // ms before ranking with what has arrived
+const ENRICH_WAIT = 2500 // ms for NIP-05 checks and follower counts
+const LATE_WAIT = 6000 // ms the relay search stays open for slow results
+const FOLLOWER_COUNTS = 10000133 // Primal's kind for {pubkey: followers}
 
+// REQ format: ["REQ", "<id>", { cache: ["user_search", { query, limit }] }]
 class PrimalCache {
   constructor() {
     this.ws = null
@@ -67,9 +75,9 @@ class PrimalCache {
       }
       ws.onclose = () => {
         this.connected = false
-        this.pending.forEach(({ resolve: r, timer }) => {
+        this.pending.forEach(({ resolve: r, timer, results }) => {
           clearTimeout(timer)
-          r([])
+          r(results)
         })
         this.pending.clear()
       }
@@ -88,16 +96,16 @@ class PrimalCache {
     const [type, id, payload] = message
     const req = this.pending.get(id)
     if (!req) return
-    if (type === 'EVENT' && payload && payload.kind === 0) {
+    if (type === 'EVENT' && payload) {
       req.results.push(payload)
-    } else if (type === 'EOSE') {
+    } else if (type === 'EOSE' || type === 'NOTICE') {
       clearTimeout(req.timer)
       req.resolve(req.results)
       this.pending.delete(id)
     }
   }
 
-  async searchUsers(query, limit = 10) {
+  async request(cache, timeout) {
     const ok = await this.connect()
     if (!ok) throw new Error('primal cache unavailable')
     const id = `astral_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`
@@ -108,83 +116,188 @@ class PrimalCache {
           this.pending.delete(id)
           resolve(req.results)
         }
-      }, 5000)
+      }, timeout)
       this.pending.set(id, { resolve, timer, results: [] })
-      this.ws.send(JSON.stringify(['REQ', id, { cache: ['user_search', { query, limit }] }]))
+      this.ws.send(JSON.stringify(['REQ', id, { cache }]))
     })
+  }
+
+  // kind-0 events in Primal's order (Primal errors on multi-word names: [])
+  async searchUsers(query, limit = 10, timeout = RELAY_WAIT) {
+    const events = await this.request(['user_search', { query, limit }], timeout)
+    return events.filter((e) => e.kind === 0)
+  }
+
+  // pubkey → follower count
+  async followerCounts(pubkeys, timeout = ENRICH_WAIT) {
+    const counts = new Map()
+    if (!pubkeys.length) return counts
+    const events = await this.request(['user_infos', { pubkeys }], timeout)
+    for (const e of events) {
+      if (e.kind !== FOLLOWER_COUNTS) continue
+      try {
+        for (const [pk, n] of Object.entries(JSON.parse(e.content))) counts.set(pk, Number(n) || 0)
+      } catch (_) { /* skip */ }
+    }
+    return counts
   }
 }
 
 const primal = new PrimalCache()
 
-function parseProfile(event) {
+function relaySet(urls) {
   try {
-    const c = JSON.parse(event.content)
-    return {
-      pubkey: event.pubkey,
-      created_at: event.created_at,
-      name: c.name || c.display_name || '',
-      display_name: c.display_name || c.name || '',
-      picture: c.picture || '',
-      nip05: c.nip05 || '',
-      about: c.about || '',
-      lud16: c.lud16 || '',
-      lud06: c.lud06 || ''
-    }
+    return NDKRelaySet.fromRelayUrls(urls, ndk)
   } catch (_) {
-    return null
+    return undefined
   }
 }
 
-// NIP-50 search on the given relays; resolves with what arrived by EOSE or the timeout.
-async function nip50Search(query, limit, relays, timeout) {
-  await connect()
-  const { NDKRelaySet } = await import('@nostr-dev-kit/ndk')
-  let relaySet
-  try {
-    relaySet = NDKRelaySet.fromRelayUrls(relays, ndk)
-  } catch (_) {
-    relaySet = undefined
-  }
-  return new Promise((resolve) => {
-    const events = new Map()
-    const sub = ndk.subscribe(
-      { kinds: [0], search: query, limit },
-      { closeOnEose: true, groupable: false, cacheUsage: NDKSubscriptionCacheUsage.ONLY_RELAY, relaySet }
-    )
-    const finish = () => {
-      try { sub.stop() } catch (_) { /* ignore */ }
-      resolve([...events.values()])
-    }
-    sub.on('event', (e) => events.set(e.pubkey, e.rawEvent ? e.rawEvent() : e))
-    sub.on('eose', finish)
-    setTimeout(finish, timeout)
-  })
-}
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
 
-// Search profiles by name / display name / nip05. Returns parsed profiles
-// (newest kind-0 per pubkey): Primal's ranking first, then syb.lol's extras.
-export async function searchProfiles(query, limit = 10) {
+/**
+ * Search profiles by name. Resolves with the ranked list; onResults is called
+ * with each better list as it comes in (including slow results added later).
+ *
+ * @param {string} query
+ * @param {object} opts
+ * @param {number} [opts.limit]
+ * @param {string[]} [opts.follows]       the viewer's follows
+ * @param {object} [opts.cached]          pubkey → profile already known (Vuex profilesCache)
+ * @param {(pubkey:string)=>boolean} [opts.hidden] drop muted / blocked accounts
+ * @param {(profiles:object[])=>void} [opts.onResults]
+ * @param {AbortSignal} [opts.signal]     stop when a newer search starts
+ */
+export async function searchProfiles(query, { limit = 10, follows = [], cached = {}, hidden = null, onResults = null, signal = null } = {}) {
   const q = (query || '').trim()
   if (q.length < 2) return []
 
-  const [fromPrimal, fromRelay] = await Promise.all([
-    primal.searchUsers(q, limit).catch(() => []),
-    nip50Search(q, limit, NIP50_PRIMARY, 3000).catch(() => []),
-  ])
-  let events = [...fromPrimal, ...fromRelay]
-  if (!events.length) events = await nip50Search(q, limit, NIP50_LAST_RESORT, 2500).catch(() => [])
+  const followSet = new Set(follows)
+  const profiles = new Map() // pubkey → newest parsed profile
+  const verified = new Map()
+  const followers = new Map()
+  const primalRank = new Map()
+  const late = [] // pubkeys that arrived after the ranked list went out
+  let ranked = null
+  let emitTimer = null
 
-  // first appearance sets the order (Primal before syb.lol); the newest kind-0 wins the content
-  const order = []
-  const byPubkey = new Map()
-  for (const ev of events) {
-    const existing = byPubkey.get(ev.pubkey)
-    if (!existing) order.push(ev.pubkey)
-    if (!existing || ev.created_at > existing.created_at) byPubkey.set(ev.pubkey, ev)
+  const keep = (p) => p && !isBridged(p) && !(hidden && hidden(p.pubkey)) && matchesQuery(p, q)
+  const add = (p) => {
+    if (!keep(p)) return false
+    const old = profiles.get(p.pubkey)
+    if (old && old.created_at >= p.created_at) return false
+    profiles.set(p.pubkey, p)
+    if (!old && ranked) late.push(p.pubkey)
+    return true
   }
-  return order
-    .map((pk) => parseProfile(byPubkey.get(pk)))
-    .filter((p) => p && !(p.nip05 && p.nip05.includes('mostr.pub')))
-    .slice(0, limit + 5) // room for the extras Primal didn't have
+  const list = () => {
+    const all = [...profiles.values()]
+    const signals = { follows: followSet, verified, followers, primalRank }
+    if (!ranked) return rankProfiles(all, q, signals).slice(0, limit + 5)
+    const lateSet = new Set(late)
+    const head = rankProfiles(all.filter((p) => !lateSet.has(p.pubkey)), q, signals).slice(0, limit + 5)
+    return head.concat(late.map((pk) => profiles.get(pk)))
+  }
+  const emit = () => {
+    clearTimeout(emitTimer)
+    emitTimer = null
+    if (!signal?.aborted && onResults) onResults(list())
+  }
+  const emitSoon = () => {
+    if (!emitTimer) emitTimer = setTimeout(emit, 150)
+  }
+
+  // 1. people you follow, from profiles already loaded
+  for (const pk of follows) {
+    const p = cached[pk]
+    if (p && matchesQuery(p, q)) add({ ...p, pubkey: pk, created_at: p.created_at || 0 })
+  }
+  if (profiles.size) emit()
+
+  // 2. relays, streaming
+  await connect()
+  if (signal?.aborted) return []
+  let relaysDone
+  const relaysAnswered = new Promise((r) => (relaysDone = r))
+  const sub = ndk.subscribe(
+    { kinds: [0], search: q, limit: 20 },
+    // exclusiveRelay: without it NDK 2.18 also hands this subscription every
+    // kind-0 seen on any relay (its matcher ignores `search`)
+    { closeOnEose: true, groupable: false, cacheUsage: NDKSubscriptionCacheUsage.ONLY_RELAY, relaySet: relaySet(SEARCH_RELAYS), exclusiveRelay: true }
+  )
+  const stopSub = () => {
+    try { sub.stop() } catch (_) { /* ignore */ }
+  }
+  sub.on('event', (e) => {
+    if (add(parseProfile(e.rawEvent ? e.rawEvent() : e))) emitSoon()
+  })
+  sub.on('eose', () => relaysDone())
+  setTimeout(stopSub, LATE_WAIT)
+  signal?.addEventListener('abort', stopSub)
+
+  // Primal's ranking, as a hint (and a source for anything the relays lack)
+  const primalDone = primal.searchUsers(q, limit).then((events) => {
+    events.forEach((e, i) => {
+      if (!primalRank.has(e.pubkey)) primalRank.set(e.pubkey, i)
+      add(parseProfile(e))
+    })
+  }).catch(() => {})
+
+  await Promise.race([Promise.all([relaysAnswered, primalDone]), sleep(RELAY_WAIT)])
+  if (signal?.aborted) return []
+  emit()
+
+  // 3. follower counts for every candidate (one request: same-name copies tie
+  // on name, so the real account can sit past any cut-off) and NIP-05 checks,
+  // then the ranked list
+  const all = [...profiles.values()]
+  const candidates = list().filter((p) => p.nip05).slice(0, 20)
+  await Promise.race([
+    Promise.all([
+      primal.followerCounts(all.map((p) => p.pubkey).slice(0, 100))
+        .then((counts) => counts.forEach((n, pk) => followers.set(pk, n)))
+        .catch(() => {}),
+      ...candidates.map((p) =>
+        verifyNip05(p.nip05, p.pubkey, ENRICH_WAIT).then((ok) => verified.set(p.pubkey, ok))
+      ),
+    ]),
+    sleep(ENRICH_WAIT),
+  ])
+  if (signal?.aborted) return []
+  const result = list()
+  ranked = true
+  emit()
+  return result
+}
+
+// Posts matching text over NIP-50, newest first (e.g. a profile's "search posts").
+export async function searchNotes(query, { authors = null, limit = 50, timeout = 4000 } = {}) {
+  const q = (query || '').trim()
+  if (!q) return []
+  await connect()
+  const filter = { kinds: [1], search: q, limit }
+  if (authors?.length) filter.authors = authors
+  return new Promise((resolve) => {
+    const events = new Map()
+    const sub = ndk.subscribe(filter, {
+      closeOnEose: true,
+      groupable: false,
+      cacheUsage: NDKSubscriptionCacheUsage.ONLY_RELAY,
+      relaySet: relaySet(SEARCH_RELAYS),
+      exclusiveRelay: true,
+    })
+    let done = false
+    const finish = () => {
+      if (done) return
+      done = true
+      try { sub.stop() } catch (_) { /* ignore */ }
+      resolve([...events.values()].sort((a, b) => b.created_at - a.created_at))
+    }
+    sub.on('event', (e) => {
+      const raw = e.rawEvent ? e.rawEvent() : e
+      events.set(raw.id, raw)
+    })
+    sub.on('eose', finish)
+    setTimeout(finish, timeout)
+  })
 }

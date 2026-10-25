@@ -119,7 +119,8 @@ import {debounce} from 'quasar'
 import helpersMixin from '../utils/mixin'
 import {addToThread} from '../utils/threads'
 import BaseUserCard from 'components/BaseUserCard.vue'
-import { dbProfile, streamProfile, dbStreamFollows, dbStreamFollowers, getNotes, dbQuery } from '../query'
+import { dbProfile, streamProfile, dbStreamFollows, dbStreamFollowers, getNotes } from '../query'
+import { searchNotes } from '../nostr/profileSearch'
 import BaseRelayRecommend from 'components/BaseRelayRecommend.vue'
 import BaseButtonLoadMore from 'components/BaseButtonLoadMore.vue'
 import BaseButtonClear from 'components/BaseButtonClear.vue'
@@ -342,19 +343,18 @@ export default defineComponent({
     },
 
     async search() {
-      // let query = `%${this.searchText.replace(' ', '%')}%`
+      const text = this.searchText.trim()
+      if (!text) return
       this.searching = true
-      this.results = []
-      let result = await dbQuery(`
-        SELECT event
-        FROM nostr
-        WHERE json_extract(event,'$.kind') = 1 AND
-          json_extract(event,'$.pubkey') = '${this.hexPubkey}' AND
-          json_extract(event,'$.content') LIKE '%${this.searchText.replace(' ', '%')}%'
-      `)
-      let searchResults = result.map(row => JSON.parse(row.event))
-      this.processUserNotes(searchResults, this.results, false)
-      this.searching = false
+      try {
+        const notes = await searchNotes(text, { authors: [this.hexPubkey], limit: 50 })
+        if (this.searchText.trim() !== text) return
+        const results = []
+        this.processUserNotes(notes, results, false)
+        this.results = results
+      } finally {
+        this.searching = false
+      }
     },
 
 
