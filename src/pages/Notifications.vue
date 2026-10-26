@@ -122,7 +122,7 @@ export default defineComponent({
       const relays = useRelayStore().urls
 
       this.engine = markRaw(createFeed({
-        baseFilter: { kinds: [1, 6, 7, 9735], '#p': [pub] },
+        baseFilter: { kinds: [1, 6, 7], '#p': [pub] },
         relays,
         pageSize: 40,
         enrich: (e) => this.interpolateEventMentions(e),

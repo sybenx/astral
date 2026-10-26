@@ -19,7 +19,7 @@
       tip with bitcoin lightning network
     </q-tooltip>
     <q-dialog v-model="showLightningCard">
-      <BaseLightningCard :ln-string='lnString' :pubkey='pubkey' style='padding: 1.5rem;' @paid='showLightningCard = false'/>
+      <BaseLightningCard :ln-string='lnString' :pubkey='pubkey' style='padding: 1.5rem;'/>
     </q-dialog>
   </q-btn>
   <q-btn v-if='oneClick' aria-label='choose a tip amount' icon='arrow_drop_down' class='no-padding' dense unelevated :size='size' @click.stop="showLightningCard=!showLightningCard">
@@ -32,7 +32,6 @@ import { defineComponent } from 'vue'
 import helpersMixin from '../utils/mixin'
 import BaseLightningCard from 'components/BaseLightningCard.vue'
 import {Notify} from 'quasar'
-import { useWalletStore } from 'stores/wallet'
 
 export default defineComponent({
   name: 'BaseButtonLightning',
@@ -65,19 +64,17 @@ export default defineComponent({
   },
 
   methods: {
+    // one click tips through a webln browser extension; otherwise the amount
+    // and wallet picker opens
     handleLightningTipClick() {
-      const wallet = useWalletStore()
-      const oneClickOn = this.$store.state.config.preferences.lightningTips.oneClick.enabled
-      // One-click pays directly when a wallet (connected NWC/Spark) or WebLN is
-      // available; otherwise open the amount/wallet picker.
-      if (oneClickOn && (wallet.connected || window.webln)) this.sendTip()
-      else this.showLightningCard = !this.showLightningCard
+      if (!window.webln || !this.$store.state.config.preferences.lightningTips.oneClick.enabled) this.showLightningCard = !this.showLightningCard
+      else this.sendTip()
     },
     async sendTip() {
+      if (!window.webln) return
       this.loading = true
       try {
-        const wallet = useWalletStore()
-        const invoice = await this.getInvoice(this.lnString, this.amount, this.pubkey)
+        const invoice = await this.getInvoice(this.lnString, this.amount)
         if (!invoice || !invoice.toLowerCase().startsWith('lnbc')) {
           Notify.create({
             message: `invoice couldn't be fetched for ${this.$store.getters.displayName(this.pubkey)}, please use a different pay method`,
@@ -86,20 +83,13 @@ export default defineComponent({
           return
         }
 
-        if (wallet.connected) {
-          await wallet.payInvoice(invoice)
-        } else if (window.webln) {
-          await window.webln.enable()
-          await window.webln.sendPayment(invoice)
-        } else {
-          this.showLightningCard = true
-          return
-        }
+        await window.webln.enable()
+        await window.webln.sendPayment(invoice)
         Notify.create({
-          message: `${this.amount} sats zapped to ${this.$store.getters.displayName(this.pubkey)} ⚡`
+          message: `${this.amount} sats sent to ${this.$store.getters.displayName(this.pubkey)}`
         })
       } catch (e) {
-        Notify.create({ message: `tip unsuccessful: ${e?.message || e}`, color: 'negative' })
+        Notify.create({ message: `one click tip unsuccessful: ${e?.message || e}`, color: 'negative' })
       } finally {
         this.loading = false
       }
