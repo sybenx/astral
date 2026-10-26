@@ -1,6 +1,12 @@
 // astral.syb.lol Worker. Static assets (the PWA) are served by Cloudflare
-// directly; this script only runs for /api/* (see run_worker_first in
-// wrangler.jsonc).
+// directly; this script runs for /api/* (see run_worker_first in
+// wrangler.jsonc) and for requests no file matched:
+//   - an app page (/npub1…, /messages/inbox, …) gets index.html, the SPA
+//     fallback Cloudflare's "single-page-application" mode used to give;
+//   - anything else missing, /assets/* above all, gets a real 404. The SPA
+//     mode answered those with index.html and a 200, under the immutable
+//     /assets/* cache header, so a stale tab asking for an old chunk had the
+//     browser keep that HTML as the chunk for a year.
 //
 // GET /api/og?url=<page>  →  { title, description, image, siteName } for a
 // link preview card. Replaces microlink.io (25 requests a day per viewer, and
@@ -16,8 +22,34 @@ export default {
   async fetch(request, env, ctx) {
     const url = new URL(request.url)
     if (url.pathname === '/api/og') return linkPreview(request, url, ctx)
-    return new Response('not found', { status: 404 })
+    if (url.pathname.startsWith('/api/')) return notFound()
+    if (isAppPage(request, url)) return appShell(request, env)
+    return notFound()
   }
+}
+
+// a page of the app rather than a file: no extension in the last segment, or a
+// browser navigation asking for HTML
+function isAppPage(request, url) {
+  if (url.pathname.startsWith('/assets/')) return false
+  if (request.method !== 'GET' && request.method !== 'HEAD') return false
+  const last = url.pathname.split('/').pop()
+  if (!last.includes('.')) return true
+  return request.headers.get('sec-fetch-mode') === 'navigate'
+}
+
+async function appShell(request, env) {
+  const res = await env.ASSETS.fetch(new Request(new URL('/', request.url), { headers: request.headers }))
+  const out = new Response(res.body, res)
+  out.headers.set('Cache-Control', 'no-cache')
+  return out
+}
+
+function notFound() {
+  return new Response('not found', {
+    status: 404,
+    headers: { 'Content-Type': 'text/plain; charset=utf-8', 'Cache-Control': 'no-store' }
+  })
 }
 
 async function linkPreview(request, url, ctx) {
