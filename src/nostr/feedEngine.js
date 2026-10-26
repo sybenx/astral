@@ -26,6 +26,7 @@ import { splitAuthors } from './filters'
 import { muteState, isMutedEvent } from './muteFilter'
 
 const nowSec = () => Math.round(Date.now() / 1000)
+const STALE_FIRST_BATCH = 15 * 60 // seconds: an older first batch waits for the relays
 const toRaw = (e) => (e && e.rawEvent ? e.rawEvent() : e)
 
 // Insert id into a newest-first id array at its sorted position.
@@ -140,7 +141,7 @@ export function createFeed({
   // One-shot older-page fetch, until-paginated. Drives the subscription itself
   // and always settles (mirrors query.js collect()), since some relays never
   // send EOSE for author filters.
-  function fetchPage(until) {
+  function fetchPage(until, onEvent = null) {
     return new Promise((resolve) => {
       const collected = []
       let settled = false
@@ -165,7 +166,9 @@ export function createFeed({
       )
       sub.on('event', (ev) => {
         const e = accept(ev)
-        if (e) collected.push(e)
+        if (!e) return
+        collected.push(e)
+        if (onEvent) onEvent(e)
       })
       sub.on('eose', finish)
       const timer = setTimeout(finish, 6000)
@@ -188,19 +191,61 @@ export function createFeed({
     })
   }
 
+  // The first page shows as it arrives instead of after the relays answer:
+  // relays connect in the background (NDK sends the request to each as it
+  // connects), cached posts come back at once, and the first batch is shown
+  // ~250ms after it starts, if it's recent (a cache from hours ago waits up to
+  // 2s for the relays instead, so the feed doesn't open on stale posts). From
+  // then on, a newer post from that first page goes behind "load N new" like
+  // any live one (nothing is pushed in above what you're reading); older ones
+  // fill in below.
   async function start() {
     if (started) return
     started = true
-    // loading is set before the connect wait (up to 2.5s), or an empty list's
-    // scroll handler gets in a loadMore() ahead of the first page
+    // loading is set at once, or an empty list's scroll handler gets in a
+    // loadMore() ahead of the first page
     loading.value = true
     const gen = generation
-    await connect()
+    connect() // not awaited: it can take seconds, and the subscription doesn't need it
+    let shown = false
+    let firstBatch = []
+    let timer = null
+    const startedAt = Date.now()
+    const show = () => {
+      timer = null
+      if (shown || gen !== generation) return
+      const newest = firstBatch.reduce((m, e) => Math.max(m, e.created_at), 0)
+      const waited = Date.now() - startedAt
+      if (nowSec() - newest > STALE_FIRST_BATCH && waited < 2000) {
+        timer = setTimeout(show, 2000 - waited) // old cache: give the relays a moment
+        return
+      }
+      shown = true
+      timeline.value = firstBatch.map((e) => e.id).sort((a, b) => at(b) - at(a))
+      if (timeline.value.length) newestAt = at(timeline.value[0])
+      firstBatch = null
+    }
+    const onEvent = (e) => {
+      if (!shown) {
+        firstBatch.push(e)
+        if (!timer) timer = setTimeout(show, 250)
+      } else if (newestAt && e.created_at > newestAt) {
+        const next = insertDesc(pending.value.slice(), e.id, at)
+        pending.value = next.length > pendingCap ? next.slice(0, pendingCap) : next
+      } else {
+        timeline.value = insertDesc(timeline.value.slice(), e.id, at)
+        if (!newestAt) newestAt = e.created_at
+      }
+    }
+    const page = await fetchPage(oldestUntil, onEvent)
+    clearTimeout(timer)
     if (gen !== generation) return
-    const page = await fetchPage(oldestUntil)
-    if (gen !== generation) return
-    const ids = page.map((e) => e.id).sort((a, b) => at(b) - at(a))
-    timeline.value = ids
+    if (!shown) show()
+    // a page merged from several author chunks drops its extras (trimPage)
+    const keep = new Set(page.map((e) => e.id))
+    if (timeline.value.some((id) => !keep.has(id))) timeline.value = timeline.value.filter((id) => keep.has(id))
+    if (pending.value.some((id) => !keep.has(id))) pending.value = pending.value.filter((id) => keep.has(id))
+    const ids = timeline.value
     if (ids.length) {
       newestAt = at(ids[0])
       oldestUntil = at(ids[ids.length - 1]) - 1
