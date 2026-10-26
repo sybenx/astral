@@ -258,16 +258,20 @@
               </q-tab>
 
               <!-- like / reaction -->
-              <q-tab name='like' class='no-padding' :aria-label='hasReacted ? "reacted" : "react"' @click.stop='sendReaction'>
+              <q-tab name='like' class='no-padding' :aria-label='liked ? "reacted" : "react"' @click.stop='sendReaction'>
                 <div class='flex row no-wrap items-center' style='gap: .3rem;'>
+                  <!-- your own reaction: its custom emoji or emoji if it wasn't a plain like -->
+                  <img v-if='myEmoji.url' :src='myEmoji.url' :alt='myEmoji.text' :style='"height: " + iconSize + "; width: auto;"'/>
+                  <span v-else-if='myEmoji.text' :style='"font-size: " + iconSize + "; line-height: 1;"'>{{ myEmoji.text }}</span>
                   <q-icon
-                    :name='hasReacted ? "favorite" : "favorite_border"'
-                    :color='hasReacted ? "pink-4" : ""'
+                    v-else
+                    :name='liked ? "favorite" : "favorite_border"'
+                    :color='liked ? "pink-4" : ""'
                     :size='iconSize'
                   />
-                  <span v-if='reactionCount' class='action-count'>{{ reactionCount }}</span>
+                  <span v-if='shownReactionCount' class='action-count'>{{ shownReactionCount }}</span>
                 </div>
-                <q-tooltip>{{ hasReacted ? 'reacted' : 'react' }}</q-tooltip>
+                <q-tooltip>{{ liked ? 'reacted' : 'react' }}</q-tooltip>
               </q-tab>
 
               <!-- repost — tap opens popup: repost | quote -->
@@ -387,6 +391,7 @@ import { useUserStore } from '../stores/user'
 import { useBookmarksStore } from '../stores/bookmarks'
 import { useMutesStore } from '../stores/mutes'
 import { muteState, isMutedEvent } from '../nostr/muteFilter'
+import { myReactionFor, checkMyReaction, setMyReaction } from '../nostr/myReactions'
 import { translateState, looksTranslatable, translate } from '../utils/translate'
 import { Notify, copyToClipboard } from 'quasar'
 import { nip19 } from 'nostr-tools'
@@ -505,6 +510,28 @@ export default defineComponent({
       return null
     },
 
+    // your own reaction to this post, found on relays (null: none; undefined: not checked yet)
+    myReaction() {
+      return myReactionFor(this.$store, this.event.id)
+    },
+    liked() {
+      return this.hasReacted || (!!this.myReaction && this.myReaction.content !== '-')
+    },
+    // the emoji to show instead of the heart, when your reaction wasn't a plain like
+    myEmoji() {
+      const content = (this.myReaction?.content || '').trim()
+      if (!content || content === '+' || content === '-') return { url: null, text: null }
+      const m = content.match(/^:([^:]+):$/)
+      if (m) {
+        const tag = (this.myReaction.tags || []).find(([t, n]) => t === 'emoji' && n === m[1])
+        return tag?.[2] ? { url: tag[2], text: content } : { url: null, text: null }
+      }
+      return { url: null, text: [...content].slice(0, 2).join('') }
+    },
+    // the cached count, plus your own reaction when only the relays had it
+    shownReactionCount() {
+      return this.reactionCount + (this.liked && !this.hasReacted ? 1 : 0)
+    },
     reactionEmoji() {
       const content = (this.event.content || '').trim()
       const m = content.match(/^:([^:]+):$/)
@@ -575,6 +602,13 @@ export default defineComponent({
     },
   },
 
+  watch: {
+    // signed in (or switched account) with this post already on screen
+    '$store.state.keys.pub'(pub) {
+      if (pub && !this.isEmbeded && this.event.kind === 1) checkMyReaction(this.$store, this.event.id)
+    },
+  },
+
   mounted() {
     if (!this.isEmbeded && (this.isQuote || this.isRepost)) {
       if (!Array.isArray(this.reposts)) this.reposts = []
@@ -586,6 +620,7 @@ export default defineComponent({
     if (!this.isEmbeded && this.event.kind === 1) {
       this.loadReactions()
       this.loadZaps()
+      if (this.$store.state.keys.pub) checkMyReaction(this.$store, this.event.id)
     }
   },
 
@@ -682,12 +717,22 @@ export default defineComponent({
     },
 
     async sendReaction() {
-      if (this.hasReacted || this.reactSending || !this.$store.state.keys.pub) return
+      if (this.liked || this.reactSending || !this.$store.state.keys.pub) return
       this.reactSending = true
       // shown at once, taken back if it can't be sent
       this.hasReacted = true
       this.reactionCount++
       try {
+        // not checked yet whether you reacted before (here or in another app):
+        // wait for that, so a second tap never publishes a duplicate
+        if (this.myReaction === undefined) {
+          await checkMyReaction(this.$store, this.event.id)
+          if (this.myReaction && this.myReaction.content !== '-') {
+            this.hasReacted = false
+            this.reactionCount = Math.max(0, this.reactionCount - 1)
+            return
+          }
+        }
         const userStore = useUserStore()
         await userStore.publishEvent({
           pubkey: this.$store.state.keys.pub,
@@ -700,6 +745,7 @@ export default defineComponent({
           ],
           content: '+',
         })
+        setMyReaction(this.$store, this.event.id, '+')
       } catch (err) {
         this.hasReacted = false
         this.reactionCount = Math.max(0, this.reactionCount - 1)
