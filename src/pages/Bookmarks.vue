@@ -79,7 +79,9 @@ export default defineComponent({
     },
   },
 
-  async mounted() {
+  // kept alive between visits (MainLayout): each visit re-reads the list, for
+  // bookmarks made in other apps; posts already here aren't fetched again
+  async activated() {
     await this.bookmarks.load(this.$store, { force: true })
     this.fetchShown()
   },

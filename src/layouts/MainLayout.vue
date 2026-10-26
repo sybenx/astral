@@ -197,7 +197,7 @@ export default defineComponent({
       // kept alive per path, so back finds a page as you left it (posts,
       // scroll, open tabs) instead of loading it again; profiles and threads
       // too, up to the 12 most recent pages
-      cachedPages: ['Feed', 'Notifications', 'DevTools', 'Settings', 'Inbox', 'Profile', 'Event'],
+      cachedPages: ['Feed', 'Notifications', 'DevTools', 'Settings', 'Inbox', 'Bookmarks', 'Profile', 'Event'],
       middlePagePos: {},
       fabPos: [0, 10],
       draggingFab: false,
