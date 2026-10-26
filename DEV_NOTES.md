@@ -74,13 +74,7 @@ After: check the Docker build GitHub Action + any lunar.ninja deploy/DNS.
 - Post box: localStorage drafts, image upload (nostr.build NIP-98,
   `src/nostr/mediaUpload.js`), live preview, send countdown/undo, paste-image →
   upload + thumbnail strip.
-- **Removed 2026-10-26 as a trial (`3673f34`; `git revert 3673f34` brings it all back):** the wallet,
-  zaps and lightning tips described in the next bullet and the backup bullet below, plus Bitcoin
-  Connect, the profile tip button, payable invoice cards and the tips preferences. Dropped
-  @getalby/bitcoin-connect, @getalby/sdk and light-bolt11-decoder: JS 3.86 → 3.08 MB (1.07 → 0.83 MB
-  gzipped). Reason (the user's): choosing a payment network picks a side; Astral stays a client. The
-  lightning address field in Settings stays. `utils/lnurl.js` and the mixin's lnurl helpers stay for it.
-- (removed, see above) Wallet: NWC (NIP-47 over NDK, `src/nostr/wallet/nwc.js`) + WebLN + NIP-57 zaps
+- Wallet: NWC (NIP-47 over NDK, `src/nostr/wallet/nwc.js`) + WebLN + NIP-57 zaps
   (`src/nostr/zap.js`). Pinia `src/stores/wallet.js`. `/wallet` page +
   `BaseWalletCard` (balance / send / receive / NWC tx history) + sidebar balance
   pill (between Wallet & Settings) + zap attribution (pfp/name parsed from the
@@ -159,7 +153,7 @@ all ~200 on open (ThePreferences). Images: `decoding='async'`, imeta alt text; i
    2.15.2, so two NDKs were loaded). Relay sets go in `opts.relaySet` (the third argument is deprecated and
    warns on every call). Kept on purpose: `collect()` (fetchEvents still hangs on `#p`) and the nostr-tools
    BunkerSigner for bunker:// (Cosign uses its own client).
-1. ~~NIP-57 zaps → `NDKZapper`~~ (zaps removed as a trial on 2026-10-26, `3673f34`).
+1. **NIP-57 zaps → `NDKZapper`** (`src/nostr/zap.js`, `mixin.js:443`). M
 2. **Profile fetch queue → `NDKUser.fetchProfile()` batching** (`actions.js:371-410`). M
 3. **NIP-04/kind-4 DMs → NIP-17/NIP-44** (`actions.js:150`, `mixin.js:327`,
    `query.js:203-219`). NIP-44 primitives already exist in `encryptionService.js`. L
@@ -194,7 +188,7 @@ all ~200 on open (ThePreferences). Images: `decoding='async'`, imeta alt text; i
   it requesting lazy chunks the new deploy no longer has. `src/boot/stale-chunks.js` reloads once on
   `vite:preloadError` as a safety net.
 - Precache is the app shell only (index.html and what it loads, manifest, icons: ~0.6 MB). Page chunks,
-  and fonts are cached on first use (CacheFirst, they're hashed).
+  fonts and wallet icons are cached on first use (CacheFirst, they're hashed or static).
 - `public/_headers`: `/assets/*` immutable, `sw.js` and `index.html` no-cache.
 - Checked locally under `wrangler dev`: install, update waiting while visible, swap + reload on hidden,
   stale-chunk reload once. The Claude browser pane doesn't fire visibilitychange on tab switches, so
@@ -254,8 +248,9 @@ delete dead code. Each phase ships as a PR.
 - NIP-17 DMs — NIP-44 encrypt/decrypt exists in encryptionService.js; zapcooking nip17.ts is reference
 
 ## Next / pending
-1. ~~Spark wallet~~ — declined 2026-10-24; the wallet store it was scaffolded in is gone with the
-   2026-10-26 trial removal of wallet and zaps.
+1. **Spark wallet** — `@breeztech/breez-sdk-spark` (big WASM). Currently
+   scaffolded as "coming soon" (kind 4) in the wallet store. zapcooking
+   `src/lib/spark/` is the reference.
 2. **Phase 6 polish** — ~~re-enable PWA~~ (done 2026-10-24: silent PWA, see below),
    delete orphaned `src/*.worker.js` + sql.js, NIP-65 relay management UI,
    migrate `astral_*` storage keys if wanted.
