@@ -97,6 +97,9 @@ export default defineComponent({
       sub: {},
       profilesUsed: new Set(),
       replyLimit: REPLY_PAGE,
+      // this page stays alive (MainLayout keep-alive) as the post it was opened
+      // on; the route moves on to other pages meanwhile
+      eventParam: this.$route.params.eventId,
     }
   },
 
@@ -123,7 +126,7 @@ export default defineComponent({
       return [this.rootAncestor].concat(this.ancestors)
     },
     hexEventId() {
-      return this.bech32ToHex(this.$route.params.eventId)
+      return this.bech32ToHex(this.eventParam)
     },
     ancestorsMissing() {
       let ancestors = this.ancestorsCompiled
@@ -137,7 +140,17 @@ export default defineComponent({
 
   mounted() {
     if (this.hexEventId) this.start()
+  },
+
+  // kept alive while you look elsewhere: hidden, its area reads as 0 high, so
+  // the anchoring would scroll the page you're on
+  activated() {
     this.anchorPost()
+  },
+
+  deactivated() {
+    this._aboveObserver?.disconnect()
+    this._aboveObserver = null
   },
 
   beforeUnmount() {

@@ -182,8 +182,8 @@ export async function getEvents(settings = {}) {
 }
 
 export async function getNotes(settings = {}) {
-  const { authors, limit = 10, until = now(), relays } = settings
-  return fetchMany({ kinds: [1], authors, limit, until }, relays)
+  const { authors, limit = 10, until = now(), since, relays } = settings
+  return fetchMany({ kinds: [1], authors, limit, until, ...(since ? { since } : {}) }, relays)
 }
 
 // ── live subscriptions (stream-style) ──────────────────────────────────────

@@ -174,6 +174,9 @@ export default defineComponent({
       searching: false,
       results: [],
       interval: null,
+      // this page stays alive (MainLayout keep-alive) as the profile it was
+      // opened on; the route moves on to other pages meanwhile
+      pubkeyParam: this.$route.params.pubkey,
     }
   },
 
@@ -183,7 +186,7 @@ export default defineComponent({
       return []
     },
     hexPubkey() {
-      if (this.$route.params.pubkey) return this.bech32ToHex(this.$route.params.pubkey)
+      if (this.pubkeyParam) return this.bech32ToHex(this.pubkeyParam)
       return ''
     },
     visibleFollows() {
@@ -219,6 +222,12 @@ export default defineComponent({
         clearInterval(this.interval)
       }, 500)
     }
+  },
+
+  // back on a profile you'd opened: its posts are still here; add newer ones
+  activated() {
+    if (this._wasShown) this.loadNewer()
+    this._wasShown = true
   },
 
   beforeUnmount() {
@@ -340,6 +349,14 @@ export default defineComponent({
       this.processUserNotes(notes, threads)
       this.threads = this.threads.concat(threads)
       this.loadingMore = false
+    },
+
+    async loadNewer() {
+      if (!this.threads.length) return
+      const relays = Object.keys(this.$store.state.relays).length ? Object.keys(this.$store.state.relays) : Object.keys(this.$store.state.defaultRelays)
+      const since = Math.max(...this.threads.map((t) => t[0].created_at)) + 1
+      const notes = await getNotes({authors: [this.hexPubkey], since, limit: 100, relays})
+      this.processUserNotes(notes, this.threads)
     },
 
     async search() {

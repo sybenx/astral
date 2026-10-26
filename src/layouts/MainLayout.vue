@@ -31,7 +31,7 @@
           <!-- <TheKeyInitializationDialog v-if='!$store.state.keys.pub && !lookingAround' @look-around='lookingAround=true'/> -->
           <TheProtectAccountBanner v-if='$store.state.keys.pub'/>
           <router-view v-slot="{ Component }">
-            <keep-alive :include='cachedPages'>
+            <keep-alive :include='cachedPages' :max='12'>
               <component :is="Component" :key='$route.path' :looking-around='lookingAround' @scroll-to-rect='scrollToRect' @reply-event='setReplyEvent' @update-font='updateFont'/>
             </keep-alive>
           </router-view>
@@ -194,7 +194,10 @@ export default defineComponent({
 
   data() {
     return {
-      cachedPages: ['Feed', 'Notifications', 'DevTools', 'Settings', 'Inbox'],
+      // kept alive per path, so back finds a page as you left it (posts,
+      // scroll, open tabs) instead of loading it again; profiles and threads
+      // too, up to the 12 most recent pages
+      cachedPages: ['Feed', 'Notifications', 'DevTools', 'Settings', 'Inbox', 'Profile', 'Event'],
       middlePagePos: {},
       fabPos: [0, 10],
       draggingFab: false,
@@ -263,6 +266,9 @@ export default defineComponent({
     this.launch()
     this.enableWebLn()
     document.querySelector('#left-drawer').addEventListener('wheel', this.redirectScroll, {passive: true})
+    // back and forward put the page where it was (restoreScrollPos); the
+    // browser's own restore landed later and, on a phone, sent it to the top
+    if ('scrollRestoration' in history) history.scrollRestoration = 'manual'
     this.$router.beforeEach((to, from) => {
       this.preserveScrollPos(to, from)
       if (to.name === 'messages' && this.postEntryOpen) this.postEntryOpen = false
@@ -316,13 +322,19 @@ export default defineComponent({
     },
 
     preserveScrollPos(to, from) {
-      if (this.cachedPages.map(page => page.toLowerCase()).includes(from.name)) this.middlePagePos[from.fullPath] = getVerticalScrollPosition(this.scrollingContainer)
+      // the route's component (loaded by now) is what keep-alive matches by name
+      const page = from.matched[from.matched.length - 1]?.components?.default?.name
+      if (this.cachedPages.includes(page)) this.middlePagePos[from.fullPath] = getVerticalScrollPosition(this.scrollingContainer)
     },
 
     // a new page starts where it should at once; animating from the old page's
     // offset made threads slide around while their posts loaded
     restoreScrollPos(to, from) {
-      setVerticalScrollPosition(this.scrollingContainer, this.middlePagePos[to.fullPath] || 0, 0)
+      const pos = this.middlePagePos[to.fullPath] || 0
+      setVerticalScrollPosition(this.scrollingContainer, pos, 0)
+      // a kept page is back in the DOM only after this render; until then the
+      // position is clamped to the height of the page being left
+      if (pos) this.$nextTick(() => setVerticalScrollPosition(this.scrollingContainer, pos, 0))
     },
 
     scrollToTop() {
