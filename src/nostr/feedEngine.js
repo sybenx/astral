@@ -27,6 +27,8 @@ import { muteState, isMutedEvent } from './muteFilter'
 
 const nowSec = () => Math.round(Date.now() / 1000)
 const STALE_FIRST_BATCH = 15 * 60 // seconds: an older first batch waits for the relays
+const STALE_WAIT_CACHE = 2000 // ms: only cached posts so far
+const STALE_WAIT_RELAYS = 700 // ms: relays answered, just old (quiet follows, notifications)
 const toRaw = (e) => (e && e.rawEvent ? e.rawEvent() : e)
 
 // Insert id into a newest-first id array at its sorted position.
@@ -164,11 +166,11 @@ export function createFeed({
         // before relays answer, yielding an empty page.)
         { closeOnEose: true, groupable: false, cacheUsage: NDKSubscriptionCacheUsage.PARALLEL, relaySet: rs() }
       )
-      sub.on('event', (ev) => {
+      sub.on('event', (ev, relay, _sub, fromCache) => {
         const e = accept(ev)
         if (!e) return
         collected.push(e)
-        if (onEvent) onEvent(e)
+        if (onEvent) onEvent(e, !!relay && !fromCache)
       })
       sub.on('eose', finish)
       const timer = setTimeout(finish, 6000)
@@ -180,7 +182,8 @@ export function createFeed({
   function startLive() {
     if (liveSub) return
     liveSub = ndk.subscribe(
-      buildFilter({ since: newestAt + 1 }),
+      // an empty first page has no newest: from now, never from 1970
+      buildFilter({ since: newestAt ? newestAt + 1 : nowSec() }),
       { closeOnEose: false, groupable: false, relaySet: rs() }
     )
     liveSub.on('event', (ev) => {
@@ -194,11 +197,13 @@ export function createFeed({
   // The first page shows as it arrives instead of after the relays answer:
   // relays connect in the background (NDK sends the request to each as it
   // connects), cached posts come back at once, and the first batch is shown
-  // ~250ms after it starts, if it's recent (a cache from hours ago waits up to
-  // 2s for the relays instead, so the feed doesn't open on stale posts). From
-  // then on, a newer post from that first page goes behind "load N new" like
-  // any live one (nothing is pushed in above what you're reading); older ones
-  // fill in below.
+  // ~250ms after it starts, if it's recent. An older one waits a little for
+  // newer posts: up to 2s while it's only the cache (so the feed doesn't open
+  // on stale posts), 0.7s once relays answer with old ones too (that's just
+  // what's newest: quiet follows, notifications from days ago). The rest of
+  // the first page, from slower relays, fills in where it belongs, newer ones
+  // too: they're that page, not "new". Only the live tail, started after the
+  // newest of them, goes behind "load N new".
   async function start() {
     if (started) return
     started = true
@@ -210,14 +215,16 @@ export function createFeed({
     let shown = false
     let firstBatch = []
     let timer = null
+    let relaysAnswered = false
     const startedAt = Date.now()
-    const show = () => {
+    const show = (pageDone = false) => {
       timer = null
       if (shown || gen !== generation) return
       const newest = firstBatch.reduce((m, e) => Math.max(m, e.created_at), 0)
       const waited = Date.now() - startedAt
-      if (nowSec() - newest > STALE_FIRST_BATCH && waited < 2000) {
-        timer = setTimeout(show, 2000 - waited) // old cache: give the relays a moment
+      const wait = relaysAnswered ? STALE_WAIT_RELAYS : STALE_WAIT_CACHE
+      if (!pageDone && nowSec() - newest > STALE_FIRST_BATCH && waited < wait) {
+        timer = setTimeout(show, wait - waited) // old: give the relays a moment
         return
       }
       shown = true
@@ -225,22 +232,27 @@ export function createFeed({
       if (timeline.value.length) newestAt = at(timeline.value[0])
       firstBatch = null
     }
-    const onEvent = (e) => {
+    const onEvent = (e, fromRelay) => {
       if (!shown) {
         firstBatch.push(e)
+        if (fromRelay && !relaysAnswered) {
+          relaysAnswered = true
+          clearTimeout(timer) // a pending 2s cache wait is now a shorter one
+          timer = null
+        }
         if (!timer) timer = setTimeout(show, 250)
-      } else if (newestAt && e.created_at > newestAt) {
-        const next = insertDesc(pending.value.slice(), e.id, at)
-        pending.value = next.length > pendingCap ? next.slice(0, pendingCap) : next
       } else {
         timeline.value = insertDesc(timeline.value.slice(), e.id, at)
-        if (!newestAt) newestAt = e.created_at
+        if (!newestAt || e.created_at > newestAt) newestAt = e.created_at
       }
     }
     const page = await fetchPage(oldestUntil, onEvent)
     clearTimeout(timer)
     if (gen !== generation) return
-    if (!shown) show()
+    // the page is complete: show it, however old. (Waiting here showed
+    // nothing, and the live tail then started from 1970 and pulled in every
+    // post or mention there is, behind "load 500 new".)
+    if (!shown) show(true)
     // a page merged from several author chunks drops its extras (trimPage)
     const keep = new Set(page.map((e) => e.id))
     if (timeline.value.some((id) => !keep.has(id))) timeline.value = timeline.value.filter((id) => keep.has(id))
