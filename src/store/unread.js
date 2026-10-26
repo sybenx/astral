@@ -1,7 +1,4 @@
 import {
-  dbChats,
-  dbUnreadMessagesCount,
-  dbUnreadMentionsCount,
   streamMainMentions,
   streamMainIncomingMessages,
 } from '../query'
@@ -10,22 +7,40 @@ import { debounce } from 'quasar'
 import { nip17State, nip17Chats, nip17UnreadFrom } from '../nostr/nip17'
 
 export default function (store) {
-  const setUnreadNotifications = async () => {
-    store.commit(
-      'setUnreadNotifications',
-      await dbUnreadMentionsCount(
-        store.state.keys.pub,
-        store.state.lastNotificationRead
-      )
-    )
+  // Unread mentions are counted from the mentions stream itself (its newest
+  // 200, then each new one). Recounting used to fetch every mention since you
+  // last looked, from every relay, on each new mention: hundreds of requests
+  // a second for an account that gets mentioned a lot, on every screen.
+  const unreadMentions = new Map() // id → created_at
+  let mentionsOwner = null
+  const setUnreadNotifications = () => {
+    const since = store.state.lastNotificationRead || 0
+    for (const [id, at] of unreadMentions) if (at <= since) unreadMentions.delete(id)
+    store.commit('setUnreadNotifications', unreadMentions.size)
+  }
+  const setUnreadNotificationsSoon = debounce(setUnreadNotifications, 500)
+  const addMentions = events => {
+    const me = store.state.keys.pub
+    const since = store.state.lastNotificationRead || 0
+    for (const event of events) {
+      if (event && event.pubkey !== me && event.created_at > since) unreadMentions.set(event.id, event.created_at)
+    }
   }
 
-  const setUnreadMessages = async peer => {
+  // Unread DMs likewise, from the incoming-messages stream: it used to be a
+  // fetch from every relay per sender, again on each new message.
+  const incoming = new Map() // peer → Map(id → created_at)
+  const addIncoming = event => {
+    if (!event || event.pubkey === store.state.keys.pub) return false
+    if (!incoming.has(event.pubkey)) incoming.set(event.pubkey, new Map())
+    incoming.get(event.pubkey).set(event.id, event.created_at)
+    return true
+  }
+  const setUnreadMessages = peer => {
     const since = store.state.lastMessageRead[peer] || 0
-    store.commit('setUnreadMessages', {
-      peer,
-      count: await dbUnreadMessagesCount(store.state.keys.pub, peer, since) + nip17UnreadFrom(peer, since)
-    })
+    let count = 0
+    for (const at of incoming.get(peer)?.values() || []) if (at > since) count++
+    store.commit('setUnreadMessages', { peer, count: count + nip17UnreadFrom(peer, since) })
   }
 
   // NIP-17 messages count too, as they're unwrapped
@@ -41,9 +56,17 @@ export default function (store) {
     let streamMainIncomingMessagesEose = false
     let streamMainIncomingMessagesPeers = {}
     if (store.state.keys.pub) {
+      if (mentionsOwner !== store.state.keys.pub) {
+        mentionsOwner = store.state.keys.pub
+        unreadMentions.clear()
+        incoming.clear()
+      }
       if (sub.streamMainMentions) sub.streamMainMentions.update({ authors: [store.state.keys.pub], relays })
       else sub.streamMainMentions = await streamMainMentions({ authors: [store.state.keys.pub], relays },
-        () => { if (streamMainMentionsEose) setUnreadNotifications() },
+        events => {
+          addMentions(events)
+          if (streamMainMentionsEose) setUnreadNotificationsSoon()
+        },
         () => {
           if (!streamMainMentionsEose) {
             streamMainMentionsEose = true
@@ -55,7 +78,7 @@ export default function (store) {
       else sub.streamMainIncomingMessages = await streamMainIncomingMessages({ authors: [store.state.keys.pub], relays },
         events => {
           for (const event of events) {
-            if (!event) continue
+            if (!addIncoming(event)) continue
             if (streamMainIncomingMessagesEose) setUnreadMessages(event.pubkey)
             else streamMainIncomingMessagesPeers[event.pubkey] = true
           }
@@ -66,9 +89,6 @@ export default function (store) {
             for (let pubkey of Object.keys(streamMainIncomingMessagesPeers)) setUnreadMessages(pubkey)
           }
         })
-
-      setUnreadNotifications()
-      dbChats(store.state.keys.pub).then(chats => { chats.forEach(chat => { setUnreadMessages(chat.peer) }) })
     }
   }
 

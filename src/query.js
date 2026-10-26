@@ -345,17 +345,3 @@ export async function dbMentions(pubkey, limit = 40, until = now()) {
   return events.sort((a, b) => b.created_at - a.created_at)
 }
 
-export async function dbUnreadMessagesCount(userPubkey, peerPubkey, since = 0) {
-  const events = await fetchMany({
-    kinds: [4],
-    authors: [peerPubkey],
-    '#p': [userPubkey],
-    since
-  })
-  return events.length
-}
-
-export async function dbUnreadMentionsCount(pubkey, since = 0) {
-  const events = await fetchMany({ kinds: [1], '#p': [pubkey], since })
-  return events.length
-}
