@@ -76,6 +76,11 @@ A checklist for any change. The sources are the original astral (monlovesmango, 
 - **keep: nothing pushy.** No permission prompts on load, no autoplay with sound. Astral can be
   installed to the home screen, but it never asks or shows an install banner. [no install nag confirmed]
   Lightning tips can be turned off in settings. [tips toggle seen; the rest a guess]
+- **trial (2026-10-26): tips as in the original, no zaps or wallet.** The 2023 astral had plain lightning
+  tips (the ⚡ button on posts and profiles, invoice cards, a wallet-app picker, one-click webln) and those
+  stay. What the Lunar fork added is out: NIP-57 zaps and their counts, the wallet page and card, NWC and
+  Bitcoin Connect. The user's words: "keep original", and not a permanent no; it's one commit (`cac7fd5`)
+  to revert. [confirmed as a trial]
 - **keep: honest about keys.** It says where your key lives and what each sign-in method trusts.
   The "protect your account" nudge should stay a single dismissable banner, not a recurring
   interruption. [explanations seen; "single banner" a guess]

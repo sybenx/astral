@@ -74,7 +74,12 @@ After: check the Docker build GitHub Action + any lunar.ninja deploy/DNS.
 - Post box: localStorage drafts, image upload (nostr.build NIP-98,
   `src/nostr/mediaUpload.js`), live preview, send countdown/undo, paste-image →
   upload + thumbnail strip.
-- Wallet: NWC (NIP-47 over NDK, `src/nostr/wallet/nwc.js`) + WebLN + NIP-57 zaps
+- **Removed 2026-10-26 as a trial (`cac7fd5`; `git revert cac7fd5` brings it back):** Lunar's wallet and
+  zaps, described in the next bullet and the backup bullet below, plus Bitcoin Connect and zap receipts in
+  notifications. Dropped @getalby/bitcoin-connect and @getalby/sdk: JS 3.86 → 3.10 MB (1.07 → 0.84 MB
+  gzipped). The original's lightning tips stay (BaseButtonLightning, the 2023 BaseLightningCard, BaseWallet,
+  tips settings in ThePreferences); tips fetch a plain LNURL-pay invoice via `utils/lnurl.js`.
+- (removed, see above) Wallet: NWC (NIP-47 over NDK, `src/nostr/wallet/nwc.js`) + WebLN + NIP-57 zaps
   (`src/nostr/zap.js`). Pinia `src/stores/wallet.js`. `/wallet` page +
   `BaseWalletCard` (balance / send / receive / NWC tx history) + sidebar balance
   pill (between Wallet & Settings) + zap attribution (pfp/name parsed from the
@@ -153,7 +158,7 @@ all ~200 on open (ThePreferences). Images: `decoding='async'`, imeta alt text; i
    2.15.2, so two NDKs were loaded). Relay sets go in `opts.relaySet` (the third argument is deprecated and
    warns on every call). Kept on purpose: `collect()` (fetchEvents still hangs on `#p`) and the nostr-tools
    BunkerSigner for bunker:// (Cosign uses its own client).
-1. **NIP-57 zaps → `NDKZapper`** (`src/nostr/zap.js`, `mixin.js:443`). M
+1. ~~NIP-57 zaps → `NDKZapper`~~ (zaps removed as a trial on 2026-10-26, `cac7fd5`).
 2. **Profile fetch queue → `NDKUser.fetchProfile()` batching** (`actions.js:371-410`). M
 3. **NIP-04/kind-4 DMs → NIP-17/NIP-44** (`actions.js:150`, `mixin.js:327`,
    `query.js:203-219`). NIP-44 primitives already exist in `encryptionService.js`. L
@@ -248,9 +253,8 @@ delete dead code. Each phase ships as a PR.
 - NIP-17 DMs — NIP-44 encrypt/decrypt exists in encryptionService.js; zapcooking nip17.ts is reference
 
 ## Next / pending
-1. **Spark wallet** — `@breeztech/breez-sdk-spark` (big WASM). Currently
-   scaffolded as "coming soon" (kind 4) in the wallet store. zapcooking
-   `src/lib/spark/` is the reference.
+1. ~~Spark wallet~~ — declined 2026-10-24; the wallet store it was scaffolded in went with the
+   2026-10-26 trial removal of the wallet and zaps.
 2. **Phase 6 polish** — ~~re-enable PWA~~ (done 2026-10-24: silent PWA, see below),
    delete orphaned `src/*.worker.js` + sql.js, NIP-65 relay management UI,
    migrate `astral_*` storage keys if wanted.
