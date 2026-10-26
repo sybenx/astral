@@ -193,10 +193,18 @@ export default defineComponent({
       if (this.engine && to >= this.items.length - 6) this.engine.loadMore()
     },
 
+    // the new posts go on top: once they're rendered, one smooth scroll of the
+    // list (it is its own scrolling element) up to them. The virtual list's own
+    // re-render can cut a smooth scroll short, so it finishes at the top anyway.
     showNew() {
       if (this.engine) this.engine.showNew()
-      const vs = this.$refs.vscroll
-      if (vs && vs.scrollTo) vs.scrollTo(0)
+      this.$nextTick(() => {
+        const el = this.$refs.vscroll?.$el
+        if (!el) return
+        const reduce = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
+        el.scrollTo({ top: 0, behavior: reduce ? 'auto' : 'smooth' })
+        setTimeout(() => { if (el.scrollTop > 0) this.$refs.vscroll?.scrollTo(0, 'start-force') }, reduce ? 0 : 700)
+      })
     },
   },
 })
