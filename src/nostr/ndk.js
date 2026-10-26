@@ -4,7 +4,7 @@
 //
 // Ported from the zapcooking nostr.ts pattern, trimmed for astral.
 
-import NDK, { NDKEvent, NDKRelaySet } from '@nostr-dev-kit/ndk'
+import NDK, { NDKEvent, NDKRelaySet, NDKRelayAuthPolicies } from '@nostr-dev-kit/ndk'
 import NDKCacheAdapterDexie from '@nostr-dev-kit/ndk-cache-dexie'
 import { schedulePrune } from './cachePrune'
 import { LocalStorage } from 'quasar'
@@ -48,6 +48,49 @@ const ndk = new NDK({
 })
 
 if (cacheAdapter) schedulePrune(() => ndk.activeUser?.pubkey || null)
+
+// NIP-42: many relays (damus, nostr.wine, most DM inbox relays) only hand out
+// DMs to the person who signs their login challenge. Answer it with whatever
+// signs for you; NDK then re-runs what the relay refused. Only the relays your
+// DMs live on get a login — the defaults, your relays, your DM inbox relays —
+// not every relay the outbox model reaches, so a phone signer isn't asked over
+// and over. A relay asks once, as soon as it connects, which is often before
+// the signer is back (Cosign, an extension) or before we know the relay holds
+// your DMs: the answer waits for both, for as long as that connection lasts.
+const bareUrl = (u) => (u || '').replace(/\/+$/, '').toLowerCase()
+const loginRelays = new Set(DEFAULT_RELAYS.map(bareUrl))
+const loginWaiters = new Set()
+const recheckLogins = () => [...loginWaiters].forEach((check) => check())
+export function allowRelayLogin(urls = []) {
+  for (const u of urls) if (/^wss?:\/\//.test(u || '')) loginRelays.add(bareUrl(u))
+  recheckLogins()
+}
+ndk.on('signer:ready', recheckLogins)
+function loginAllowed(relay) {
+  const ready = () => !!ndk.signer && loginRelays.has(bareUrl(relay.url))
+  if (ready()) return Promise.resolve(true)
+  return new Promise((resolve) => {
+    const done = (ok) => {
+      loginWaiters.delete(check)
+      relay.off?.('disconnect', gone)
+      resolve(ok)
+    }
+    const check = () => { if (ready()) done(true) }
+    const gone = () => done(false)
+    loginWaiters.add(check)
+    relay.once?.('disconnect', gone)
+  })
+}
+const signInToRelay = NDKRelayAuthPolicies.signIn({ ndk })
+ndk.relayAuthDefaultPolicy = async (relay, challenge) => {
+  if (!(await loginAllowed(relay))) return false
+  try {
+    return await signInToRelay(relay, challenge)
+  } catch (err) {
+    console.warn('[ndk] relay login failed', relay.url, err?.message || err)
+    return false
+  }
+}
 
 let connectPromise = null
 

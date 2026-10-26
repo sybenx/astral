@@ -11,7 +11,7 @@ import {
   dbSave,
   publish,
 } from '../query'
-import ndk, {addRelays} from '../nostr/ndk'
+import ndk, {addRelays, allowRelayLogin} from '../nostr/ndk'
 import {relaysFromEvent, relayListTags} from '../nostr/relayList'
 import {useMutesStore} from '../stores/mutes'
 import {getPubKeyTagWithRelay, lowerFirst} from '../utils/helpers'
@@ -30,8 +30,12 @@ export function initKeys(store, keys) {
 export async function launch(store) {
   console.log('launch for ', store.state.keys.pub)
 
+  // your relays hold your kind-4 DMs: answer their login challenge (NIP-42)
+  allowRelayLogin(Object.keys(store.state.relays || {}))
+
   // adopt the user's NIP-65 relays first, then start subscriptions on them
   await store.dispatch('loadRelayList')
+  allowRelayLogin(Object.keys(store.state.relays || {}))
 
   // the mute list applies everywhere; nothing waits for it
   useMutesStore().load(store).catch((err) => console.warn('[mutes] load failed', err))
