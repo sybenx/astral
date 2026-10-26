@@ -34,18 +34,21 @@ export async function launch(store) {
   // your relays hold your kind-4 DMs: answer their login challenge (NIP-42)
   allowRelayLogin(Object.keys(store.state.relays || {}))
 
-  // adopt the user's NIP-65 relays first, then start subscriptions on them
-  await store.dispatch('loadRelayList')
-  allowRelayLogin(Object.keys(store.state.relays || {}))
+  // start listening at once, on the relays known now: waiting for the NIP-65
+  // list first (up to 4 s) held back the follow list on a fresh sign-in, and
+  // with it the follows feed
+  store.dispatch('restartMainSubscription')
+  loadContactList(store).catch((err) => console.warn('[follows] load failed', err))
 
   // the mute list applies everywhere; nothing waits for it
   useMutesStore().load(store).catch((err) => console.warn('[mutes] load failed', err))
 
-  // NIP-17 messages (gift wraps) next to the kind-4 ones
-  startNip17(store).catch((err) => console.warn('[nip17] start failed', err))
+  // then adopt the user's NIP-65 relays (setRelays moves the subscriptions)
+  await store.dispatch('loadRelayList')
+  allowRelayLogin(Object.keys(store.state.relays || {}))
 
-  // start listening for nostr events
-  store.dispatch('restartMainSubscription')
+  // NIP-17 messages (gift wraps) next to the kind-4 ones, from your DM relays
+  startNip17(store).catch((err) => console.warn('[nip17] start failed', err))
 }
 
 // Fetch the user's NIP-65 (kind 10002) relay list and adopt it as the active
@@ -119,33 +122,49 @@ export async function restartMainSubscription(store) {
         if (event.kind === 0) {
           store.dispatch('handleAddingProfileEventToCache', event)
         } else if (event.pubkey === store.state.keys.pub && event.kind === 3) {
-          // Skip stale/duplicate contact lists (relays may resend older ones).
-          if (event.created_at <= latestContactListAt) continue
-          latestContactListAt = event.created_at
-
-          // Legacy astral stored the relay list as JSON in kind-3 content;
-          // modern kind-3 events leave content empty (relays live in NIP-65
-          // kind-10002). Only adopt content when it actually parses — a bad or
-          // empty content must never abort the follows update below.
-          // A NIP-65 list, when there is one, wins over that legacy JSON.
-          if (!relayListFound && event.content && event.content.trim()) {
-            try {
-              store.commit('setRelays', JSON.parse(event.content))
-            } catch (_) {
-              /* not legacy relay JSON — ignore */
-            }
-          }
-
-          let follows = event.tags
-            .filter(([t, v]) => t === 'p' && v)
-            .map(([_, v]) => v)
-          store.commit('setFollows', follows)
-          store.dispatch('restartMainSubscription')
+          adoptContactList(store, event)
         }
       }
     }
   )
   else mainSub.streamMainProfilesFollows.update({ authors, relays, user: store.state.keys.pub })
+}
+
+// Your contact list (kind 3): your follows, from the main subscription or
+// fetched on its own at launch (loadContactList).
+function adoptContactList(store, event) {
+  // Skip stale/duplicate contact lists (relays may resend older ones).
+  if (event.created_at <= latestContactListAt) return
+  latestContactListAt = event.created_at
+
+  // Legacy astral stored the relay list as JSON in kind-3 content;
+  // modern kind-3 events leave content empty (relays live in NIP-65
+  // kind-10002). Only adopt content when it actually parses — a bad or
+  // empty content must never abort the follows update below.
+  // A NIP-65 list, when there is one, wins over that legacy JSON.
+  if (!relayListFound && event.content && event.content.trim()) {
+    try {
+      store.commit('setRelays', JSON.parse(event.content))
+    } catch (_) {
+      /* not legacy relay JSON — ignore */
+    }
+  }
+
+  let follows = event.tags
+    .filter(([t, v]) => t === 'p' && v)
+    .map(([_, v]) => v)
+  store.commit('setFollows', follows)
+  store.dispatch('restartMainSubscription')
+}
+
+// On its own request: in the main subscription it queues behind the profiles
+// of everyone you follow, which on a phone held the follows feed back for
+// 20 s on a fresh sign-in.
+async function loadContactList(store) {
+  const me = store.state.keys.pub
+  const events = await dbFollows(me)
+  const newest = events.filter((e) => e.pubkey === me).sort((a, b) => b.created_at - a.created_at)[0]
+  if (newest && store.state.keys.pub === me) adoptContactList(store, newest)
 }
 
 export async function addEvent(store, {event, relay = null}) {
