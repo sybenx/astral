@@ -2,7 +2,7 @@ import DOMPurify from 'dompurify'
 import { Notify } from 'quasar'
 import {getEventHash, signEvent} from './ntcompat'
 import ndk from '../nostr/ndk'
-import { getAuthManager } from '../nostr/authManager'
+import { getAuthManager } from '../nostr/auth'
 
 export function cleanEvent(event) {
   return {

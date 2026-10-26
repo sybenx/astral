@@ -285,7 +285,7 @@ import BaseInformation from 'components/BaseInformation.vue'
 import ThePreferences from 'components/ThePreferences.vue'
 import { createMetaMixin, Notify } from 'quasar'
 import * as utils from '../utils/lnurl'
-import { getAuthManager } from '../nostr/authManager'
+import { getAuthManager, loadAuthManager } from '../nostr/auth'
 import { getTranslateSettings, saveTranslateSettings, normalizeServerUrl, translate } from '../utils/translate'
 import ndk from '../nostr/ndk'
 import { useMutesStore } from '../stores/mutes'
@@ -600,7 +600,7 @@ export default {
         })
         .onOk(async () => {
           // Lets a phone signer drop this site from its list before we forget it.
-          await getAuthManager()?.logout().catch(() => {})
+          await (getAuthManager() || await loadAuthManager().catch(() => null))?.logout().catch(() => {})
           LocalStorage.clear()
           window.location.reload()
         })

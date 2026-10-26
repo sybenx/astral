@@ -77,7 +77,7 @@
 
 <script>
 import { defineComponent, markRaw } from 'vue'
-import { getAuthManager } from '../nostr/authManager'
+import { getAuthManager, loadAuthManager } from '../nostr/auth'
 import { countVisit, shouldSuggestProtecting, snoozeProtecting } from '../utils/accountCare'
 import BaseQr from 'components/BaseQr.vue'
 import { lowerFirst } from '../utils/helpers'
@@ -165,8 +165,8 @@ export default defineComponent({
       this.$router.push('/settings')
     },
 
-    startMove() {
-      const auth = getAuthManager()
+    async startMove() {
+      const auth = getAuthManager() || await loadAuthManager().catch(() => null)
       const { priv, pub } = this.$store.state.keys
       if (!auth || !priv) return
       Object.assign(this, { stage: 'moving', status: 'getting ready…', code: '', openLink: '', showCode: false, digitsAsked: false, digits: '', error: '' })

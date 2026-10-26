@@ -325,7 +325,7 @@ import helpersMixin from '../utils/mixin'
 import { generatePrivateKey, getPublicKey, nip06 } from '../utils/ntcompat'
 import { uploadImage } from '../nostr/mediaUpload'
 import { markAccountCreated } from '../utils/accountCare'
-import { getAuthManager } from '../nostr/authManager'
+import { getAuthManager, loadAuthManager, onAuthManager } from '../nostr/auth'
 import { copyToClipboard, Notify } from 'quasar'
 import { lowerFirst } from '../utils/helpers'
 // import { decode } from 'bech32-buffer'
@@ -455,16 +455,18 @@ export default defineComponent({
 
   async created() {
     // Every signer login lands here through the auth state, however it started.
-    const auth = getAuthManager()
-    if (auth) {
+    // the manager may still be loading (it's off the first load): subscribe once it's there
+    onAuthManager((auth) => {
+      if (this._unmounted) return
       this.authUnsub = auth.subscribe((state) => {
         if (state.isAuthenticated && state.publicKey) this.handleAuthenticated(state.publicKey)
         else if (state.error) this.signerError = state.error
       })
-    }
+    })
   },
 
   beforeUnmount() {
+    this._unmounted = true
     if (this.authUnsub) this.authUnsub()
     if (this.pairing) this.pairing.cancel()
     if (this.picturePreview) URL.revokeObjectURL(this.picturePreview)
@@ -556,7 +558,7 @@ export default defineComponent({
     },
 
     async loginWithExtension() {
-      const auth = getAuthManager()
+      const auth = getAuthManager() || await loadAuthManager().catch(() => null)
       if (!auth) {
         this.signerError = 'signer not ready, please reload'
         return
@@ -576,8 +578,8 @@ export default defineComponent({
 
     // Show a code: Cosign answers it with a ticket; any other signer app uses the
     // nostrconnect half. On Android the code is a link that opens the app.
-    startPhone() {
-      const auth = getAuthManager()
+    async startPhone() {
+      const auth = getAuthManager() || await loadAuthManager().catch(() => null)
       if (!auth) {
         this.signerError = 'signer not ready, please reload'
         return
@@ -683,7 +685,7 @@ export default defineComponent({
 
     async loginWithBunker() {
       this.signerError = ''
-      const auth = getAuthManager()
+      const auth = getAuthManager() || await loadAuthManager().catch(() => null)
       if (!auth) {
         this.signerError = 'signer not ready, please reload'
         return
