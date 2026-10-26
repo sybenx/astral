@@ -319,9 +319,10 @@ export default defineComponent({
       if (this.cachedPages.map(page => page.toLowerCase()).includes(from.name)) this.middlePagePos[from.fullPath] = getVerticalScrollPosition(this.scrollingContainer)
     },
 
+    // a new page starts where it should at once; animating from the old page's
+    // offset made threads slide around while their posts loaded
     restoreScrollPos(to, from) {
-      if (this.middlePagePos[to.fullPath]) setVerticalScrollPosition(this.scrollingContainer, this.middlePagePos[to.fullPath], scrollMs())
-      else this.scrollToTop()
+      setVerticalScrollPosition(this.scrollingContainer, this.middlePagePos[to.fullPath] || 0, 0)
     },
 
     scrollToTop() {

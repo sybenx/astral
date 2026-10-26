@@ -2,10 +2,13 @@
 
   <q-page ref='page'>
     <BaseHeader>{{ $t('thread') }}</BaseHeader>
-    <div ref='ancestors' v-if="ancestorsCompiled.length || rootAncestor">
-      <BasePostThread :events="ancestorsCompiled" is-ancestors @add-event='addEventAncestors'/>
+    <!-- everything above the post: grows as parents load, and the page keeps the post still -->
+    <div ref='above'>
+      <div ref='ancestors' v-if="ancestorsCompiled.length || rootAncestor">
+        <BasePostThread :events="ancestorsCompiled" is-ancestors @add-event='addEventAncestors'/>
+      </div>
+      <BaseButtonShowMore v-if="ancestorsMissing" :root="ancestorsMissing"/>
     </div>
-    <BaseButtonShowMore v-if="ancestorsMissing" :root="ancestorsMissing"/>
 
     <div class='relative-position'>
     <div v-if="ancestors && ancestors.length" class="is-reply-connector"></div>
@@ -38,12 +41,12 @@
 </template>
 
 <script>
-import { defineComponent, nextTick } from 'vue'
+import { defineComponent } from 'vue'
 import {dbStreamEvent, dbStreamTagKind} from '../query'
 import helpersMixin from '../utils/mixin'
 import {addToThread} from '../utils/threads'
 import BaseRelayList from 'components/BaseRelayList.vue'
-import { createMetaMixin } from 'quasar'
+import { createMetaMixin, scroll } from 'quasar'
 import BaseButtonShowMore from 'components/BaseButtonShowMore'
 
 const metaData = {
@@ -60,6 +63,18 @@ const metaData = {
 
 
 const REPLY_PAGE = 30 // replies mounted at a time
+const { getVerticalScrollPosition, setVerticalScrollPosition } = scroll
+
+// The element that actually scrolls the page: the page container on wide
+// screens, the window on phones (Quasar's getScrollTarget only knows its own
+// scroll classes).
+function scrollParent(el) {
+  for (let n = el?.parentElement; n && n !== document.body; n = n.parentElement) {
+    const y = getComputedStyle(n).overflowY
+    if ((y === 'auto' || y === 'scroll') && n.scrollHeight > n.clientHeight) return n
+  }
+  return window
+}
 export default defineComponent({
   name: 'Event',
   emits: ['scroll-to-rect'],
@@ -122,9 +137,11 @@ export default defineComponent({
 
   mounted() {
     if (this.hexEventId) this.start()
+    this.anchorPost()
   },
 
   beforeUnmount() {
+    this._aboveObserver?.disconnect()
     this.stop()
   },
 
@@ -143,6 +160,7 @@ export default defineComponent({
         this.interpolateEventMentions(event)
         this.event = null
         this.event = event
+        this.showPostFirst()
         if (getAncestorsChildren) {
           if (this.event.interpolated.replyEvents.length) this.subRootAncestor()
           this.subAncestorsChildren()
@@ -215,7 +233,6 @@ export default defineComponent({
         let prevAncestor = event
         while (prevAncestor) {
           this.ancestors = [prevAncestor].concat(this.ancestors)
-          this.scrollToMainEvent()
           this.useProfile(prevAncestor.pubkey)
           currAncestor = prevAncestor
           prevAncestorId = currAncestor.interpolated.replyEvents[currAncestor.interpolated.replyEvents.length - 1]
@@ -234,10 +251,41 @@ export default defineComponent({
       addToThread(this.childrenThreads, event, '', event.pubkey !== this.$store.state.keys.pub)
     },
 
-    scrollToMainEvent() {
-      nextTick(() => {
-        let mainRect = this.$refs.main?.$el.getBoundingClientRect()
-        this.$emit('scroll-to-rect', mainRect)
+    // The thread opens on the post you tapped. Parents (and their images,
+    // names…) load in above it afterwards; each time that area grows, scroll by
+    // exactly as much, at once, so the post stays where it is instead of the
+    // page sliding around while things load. Safari has no scroll anchoring
+    // (overflow-anchor), so it's done here.
+    anchorPost() {
+      const above = this.$refs.above
+      if (!above || !window.ResizeObserver) return
+      let height = above.offsetHeight
+      this._aboveObserver = new ResizeObserver(() => {
+        const next = above.offsetHeight
+        const delta = next - height
+        height = next
+        if (!delta) return
+        const target = scrollParent(above)
+        // only while you're at or below the post; scrolled up into the parents, leave it
+        const postTop = this.$refs.main?.$el?.getBoundingClientRect().top ?? 0
+        if (postTop < -50) return
+        setVerticalScrollPosition(target, getVerticalScrollPosition(target) + delta, 0)
+      })
+      this._aboveObserver.observe(above)
+    },
+
+    // First paint of the post: when cached parents already push it far down,
+    // open on the post (at once) rather than on the top of the thread.
+    showPostFirst() {
+      if (this._postShown) return
+      this.$nextTick(() => {
+        const main = this.$refs.main?.$el
+        if (!main) return
+        this._postShown = true
+        const top = main.getBoundingClientRect().top
+        if (top < window.innerHeight * 0.5) return
+        const target = scrollParent(main)
+        setVerticalScrollPosition(target, getVerticalScrollPosition(target) + top - 80, 0)
       })
     },
 
