@@ -2,7 +2,7 @@
   <q-page class='flex column no-wrap' >
     <div id='header-placeholder' />
     <div id='header' ref='header'>
-      <div class='flex row justify-evenly no-wrap full-width q-pt-sm q-px-sm'>
+      <div class='header-cards flex row justify-evenly no-wrap full-width q-pt-sm q-px-sm'>
         <BaseUserCard
           v-if='hexPubkey'
           :pubkey='hexPubkey'
@@ -355,6 +355,10 @@ export default {
   left: 1px;
   background: var(--q-background);
 }
+/* the floating nav buttons sit at the top right, over the right-hand card */
+.header-cards {
+  padding-top: 54px !important;
+}
 #current-datestamp {
   border-bottom-right-radius: .25rem;
   border-bottom-left-radius: .25rem;
@@ -374,7 +378,7 @@ export default {
 #message-scroll {
   overflow-y: auto;
   padding: 0 .3rem;
-  height: calc(100svh - 14rem);
+  height: calc(100svh - 14rem - 54px);
 }
 
 @media screen and (min-width: 600px) {
