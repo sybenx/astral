@@ -43,11 +43,12 @@
 </template>
 
 <script>
-import { defineComponent } from 'vue'
+import { defineComponent, defineAsyncComponent } from 'vue'
 import { useQuasar } from 'quasar'
 import helpersMixin from '../utils/mixin'
 import BaseUserCardActions from 'components/BaseUserCardActions.vue'
-import BaseMarkdown from 'components/BaseMarkdown.vue'
+// the bio renderer (markdown-it) isn't needed before the first paint
+const BaseMarkdown = defineAsyncComponent(() => import('components/BaseMarkdown.vue'))
 
 export default defineComponent({
   name: 'BaseUserCard',
