@@ -33,7 +33,7 @@
           </div>
       </div>
     </div>
-    <div ref='messageScroll' id='message-scroll' @scroll='updateCurrentDatestamp' @touchmove='updateCurrentDatestamp' @touchend='delayedUpdateCurrentDatestamp'>
+    <div ref='messageScroll' id='message-scroll' class='scroll-y' @scroll='updateCurrentDatestamp' @touchmove='updateCurrentDatestamp' @touchend='delayedUpdateCurrentDatestamp'>
       <q-infinite-scroll @load="loadMore" reverse ref='messagesScroll'>
         <div
           v-for="(event, index) in messagesGrouped"
@@ -241,8 +241,9 @@ export default {
     async scrollToBottom() {
       return new Promise(resolve =>
         setTimeout(() => {
+          // the list scrolls inside its own box; moving the page too (by the
+          // list's height) pushed a phone's messages up behind the header
           this.$refs.messageScroll.scrollTop = this.$refs.messageScroll.scrollHeight
-          this.$emit('scroll-to-rect', { top: this.$refs.messageScroll.scrollHeight })
           this.$store.commit('haveReadMessage', this.hexPubkey)
           this.unreadMessagesSet.clear()
           resolve()
@@ -398,13 +399,14 @@ export default {
 }
 
 /* Bound the scroll container on all viewports — without this iOS renders the
-   entire message list DOM at once and OOM-crashes on long conversations. The
-   header on mobile is ~9rem (two user cards + datestamp bar); the send box is
-   ~5rem; 14rem total leaves the message list the remaining viewport height. */
+   entire message list DOM at once and OOM-crashes on long conversations. On a
+   phone the header (user cards, below the floating nav buttons) is ~3rem +
+   54px and the bottom drawer (send box + menu) ~13rem: the list gets the rest,
+   so the newest message ends above the send box. */
 #message-scroll {
   overflow-y: auto;
   padding: 0 .3rem;
-  height: calc(100svh - 14rem - 54px);
+  height: calc(100svh - 16rem - 54px);
 }
 
 @media screen and (min-width: 600px) {
