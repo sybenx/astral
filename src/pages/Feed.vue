@@ -106,11 +106,24 @@ export default defineComponent({
     behindSignIn() {
       return !this.$store.state.keys.pub && !this.lookingAround
     },
+    followsCount() {
+      return this.$store.state.follows.length
+    },
   },
 
   watch: {
     feedName(curr, prev) {
-      if (curr !== prev) this.build()
+      if (curr === prev || curr === this._builtFor) return
+      this._waitingForFollows = false // picked by hand
+      this.build()
+    },
+    // signed in on a device with no follow list yet: the feed showed global
+    // while it loaded; now it's here, show yours
+    followsCount(count) {
+      if (count && this._waitingForFollows) {
+        this._waitingForFollows = false
+        this.feedName = 'follows'
+      }
     },
     behindSignIn() {
       this.syncLive()
@@ -138,7 +151,11 @@ export default defineComponent({
       if (this.engine) this.engine.destroy()
       const follows = this.$store.state.follows
       const useFollows = this.feedName === 'follows' && follows.length
-      if (this.feedName === 'follows' && !follows.length) this.feedName = 'global'
+      if (this.feedName === 'follows' && !follows.length) {
+        this._waitingForFollows = !!this.$store.state.keys.pub
+        this.feedName = 'global'
+      }
+      this._builtFor = this.feedName
 
       // markRaw keeps the engine object (and its closures/Map) out of Vue's
       // reactivity; we drive re-renders manually via tick + the ref computeds.
