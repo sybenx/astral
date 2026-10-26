@@ -71,7 +71,11 @@ A checklist for any change. The sources are the original astral (monlovesmango, 
   page in the menu. Translation only ever goes through a server the reader sets up. [confirmed]
 - **keep: nothing pushy.** No permission prompts on load, no autoplay with sound. Astral can be
   installed to the home screen, but it never asks or shows an install banner. [no install nag confirmed]
-  Lightning tips can be turned off in settings. [tips toggle seen; the rest a guess]
+- **trial (2026-10-26): no zaps, tips or wallet.** Picking one payment network picks a side between
+  bitcoin, monero and the rest, and Astral never did. Zaps came with the Lunar fork; the original only had
+  plain lightning tips, and those are out too. Likes, emoji reactions, reposts and replies stay, and your
+  lightning address stays in Settings, so zaps sent from other apps still reach you. The user called it
+  "not a permanent no": it's one commit (`3673f34`) to revert. [confirmed as a trial]
 - **keep: honest about keys.** It says where your key lives and what each sign-in method trusts.
   The "protect your account" nudge should stay a single dismissable banner, not a recurring
   interruption. [explanations seen; "single banner" a guess]

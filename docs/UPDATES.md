@@ -1,7 +1,9 @@
 # Updates worth making
 
 Read with [FEEL.md](FEEL.md). **Decided 2026-10-24:** the user approved #1, #2, #9–#14, #20 (lowercase),
-and #21. #23 (Spark) is declined. Everything else waits until asked. Each item has a tag:
+and #21. #23 (Spark) is declined. **2026-10-26:** zaps, tips and the wallet are removed as a trial
+(`3673f34`, one commit to revert), so #18's zap half no longer applies. Everything else waits until
+asked. Each item has a tag:
 
 - **invisible**: nobody should notice, except that it's faster or breaks less.
 - **feel, slightly**: something small shows up or looks a little different.
@@ -46,7 +48,7 @@ The npm registry wasn't reachable from here, so I haven't compared against the l
 | 15 | Respect your NIP-51 mute list from other clients, plus "mute" in the ⋮ menu | S–M | Not supported at all today. |
 | 16 | Outbox reads for the follows feed (fetch each author from their own write relays). NDK has `enableOutboxModel` on, but the feed engine still asks one fixed relay set | M | Mostly invisible: the follows feed gets more complete. |
 | 17 | Lists as feeds: your NIP-51 follow sets in the follows / global picker | M | Fits the original's "bots" feed option. |
-| 18 | NIP-57 zaps via `NDKZapper` (#1), profile search via NDK instead of a hand-rolled Primal socket (#10) | M each | Mostly invisible. |
+| 18 | ~~NIP-57 zaps via `NDKZapper` (#1)~~, profile search via NDK instead of a hand-rolled Primal socket (#10) | M each | Zaps removed as a trial on 2026-10-26; profile search was redone on Ditto + syb.lol instead. |
 | 19 | Revive or remove the dev tools SQL editor (its database is gone; it returns nothing) | S to remove, M to rebuild on the Dexie cache | It's a power-user door from the original. |
 
 ## Bigger changes (feel)
