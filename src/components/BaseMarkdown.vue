@@ -31,7 +31,9 @@ import deflist from 'markdown-it-deflist'
 import taskLists from 'markdown-it-task-lists'
 import emoji from 'markdown-it-emoji'
 import helpersMixin from '../utils/mixin'
-import BaseLightningCard from 'components/BaseLightningCard.vue'
+import { defineAsyncComponent } from 'vue'
+// only a post with a lightning invoice needs the card (and its bolt11 decoder)
+const BaseLightningCard = defineAsyncComponent(() => import('components/BaseLightningCard.vue'))
 import BaseLinkPreview from 'components/BaseLinkPreview.vue'
 
 // Module-level ref so the markdown-it plugin (defined once, outside Vue) can

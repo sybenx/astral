@@ -28,9 +28,10 @@
 </template>
 
 <script>
-import { defineComponent } from 'vue'
+import { defineComponent, defineAsyncComponent } from 'vue'
 import helpersMixin from '../utils/mixin'
-import BaseLightningCard from 'components/BaseLightningCard.vue'
+// the card (amount, wallet picker, bolt11 decoder) loads when someone taps ⚡
+const BaseLightningCard = defineAsyncComponent(() => import('components/BaseLightningCard.vue'))
 import {Notify} from 'quasar'
 
 export default defineComponent({
