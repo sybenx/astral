@@ -71,7 +71,6 @@ export default {
       choosingTheme: false,
       preferences: {},
       hasJustSharedRelay: false,
-      hasWebLn: false,
       themes: {
         astral: {
           primary: '#d671ea',
@@ -147,7 +146,6 @@ export default {
 
   mounted() {
     this.clonePreferences()
-    this.hasWebLn = window.webln
   },
 
   methods: {

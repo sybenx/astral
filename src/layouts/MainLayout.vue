@@ -261,7 +261,6 @@ export default defineComponent({
 
     // setup scrolling
     this.launch()
-    this.enableWebLn()
     document.querySelector('#left-drawer').addEventListener('wheel', this.redirectScroll, {passive: true})
     this.$router.beforeEach((to, from) => {
       this.preserveScrollPos(to, from)
@@ -467,16 +466,6 @@ export default defineComponent({
     openSignIn() {
       this.lookingAround = false
       writeSessionFlag(LOOKING_AROUND, false)
-    },
-    async enableWebLn() {
-      try {
-        if (typeof window.webln !== 'undefined') {
-          await window.webln.enable()
-        }
-      } catch (error) {
-        // User denied permission or cancelled
-        console.log(error)
-      }
     },
     async getRelayStat() {
       let stat = await getRelayStatus()

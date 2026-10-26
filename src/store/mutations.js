@@ -197,9 +197,6 @@ export function setConfig(state, {key, value}) {
   state.config[key] = value
 }
 
-export function setConfigLightningTips(state, {key, value}) {
-  state.config.preferences.lightningTips[key] = value
-}
 
 function normalizeRelayURL(url) {
   let [host, ...qs] = url.trim().split('?')

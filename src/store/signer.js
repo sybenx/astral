@@ -3,7 +3,7 @@ import ndk from '../nostr/ndk'
 
 // A key held in this browser (pasted, created, or restored from storage) is
 // also NDK's signer, so code that asks ndk.signer works for these accounts too:
-// zap requests, the canSign / canEncrypt getters, NDK's own signing.
+// the canSign / canEncrypt getters, NDK's own signing.
 // Remote sign-ins (Cosign, extension, bunker) keep only the pubkey in the store
 // and bind their own signer in the AuthManager; this never replaces or clears
 // a signer it didn't set.

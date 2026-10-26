@@ -94,7 +94,6 @@ export default {
   preferences: 'preferences',
   colors: 'colors',
   font: 'font',
-  lightningTips: 'lightning tips',
 
   // text
   noFollows: 'no follows',

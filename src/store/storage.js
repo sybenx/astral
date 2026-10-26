@@ -13,7 +13,6 @@ export default function (store) {
         LocalStorage.set('relays', state.relays)
         break
       case 'setConfig':
-      case 'setConfigLightningTips':
         LocalStorage.set('config', state.config)
         break
       case 'haveReadNotifications':
