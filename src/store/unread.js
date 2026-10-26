@@ -5,6 +5,9 @@ import {
   streamMainMentions,
   streamMainIncomingMessages,
 } from '../query'
+import { watch } from 'vue'
+import { debounce } from 'quasar'
+import { nip17State, nip17Chats, nip17UnreadFrom } from '../nostr/nip17'
 
 export default function (store) {
   const setUnreadNotifications = async () => {
@@ -18,15 +21,18 @@ export default function (store) {
   }
 
   const setUnreadMessages = async peer => {
+    const since = store.state.lastMessageRead[peer] || 0
     store.commit('setUnreadMessages', {
       peer,
-      count: await dbUnreadMessagesCount(
-        store.state.keys.pub,
-        peer,
-        store.state.lastMessageRead[peer] || 0
-      )
+      count: await dbUnreadMessagesCount(store.state.keys.pub, peer, since) + nip17UnreadFrom(peer, since)
     })
   }
+
+  // NIP-17 messages count too, as they're unwrapped
+  watch(() => nip17State.version, debounce(() => {
+    if (!store.state.keys.pub) return
+    for (const peer of nip17Chats().keys()) if (peer !== store.state.keys.pub) setUnreadMessages(peer)
+  }, 1000))
 
   let sub = {}
   const streamMentionsAndMessages = async () => {

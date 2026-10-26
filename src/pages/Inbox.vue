@@ -71,6 +71,7 @@
 <script>
 import { defineComponent } from 'vue'
 import { dbChats, streamMainIncomingMessages, streamMainOutgoingMessages } from '../query'
+import { nip17State, nip17Chats } from '../nostr/nip17'
 import helpersMixin from '../utils/mixin'
 import { useProfileStore } from '../stores/profile'
 import { useRelayStore } from '../stores/relay'
@@ -92,6 +93,7 @@ export default defineComponent({
   data() {
     return {
       chats: [],
+      kind4Chats: [], // from dbChats; NIP-17 conversations are merged in (mergeChats)
       loading: true,
       sub: {},
     }
@@ -100,7 +102,16 @@ export default defineComponent({
   computed: {
     allChatsNeverRead() {
       return Object.keys(this.$store.state.lastMessageRead).length === 0
-    }
+    },
+    nip17Version() {
+      return nip17State.version
+    },
+  },
+
+  watch: {
+    nip17Version() {
+      this.mergeChats()
+    },
   },
 
   async mounted() {
@@ -141,12 +152,26 @@ export default defineComponent({
 
     async getChats() {
       const pub = this.$store.state.keys.pub
-      this.chats = await dbChats(pub)
+      this.kind4Chats = await dbChats(pub)
+      this.mergeChats()
       const profileStore = useProfileStore()
       this.chats.forEach(({ peer }) => profileStore.ensure(peer))
       if (this.allChatsNeverRead) {
         this.chats.forEach(({ peer }) => this.$store.commit('haveReadMessage', peer))
       }
+    },
+
+    // one row per person: the newest message, kind 4 or NIP-17
+    mergeChats() {
+      const latest = new Map(this.kind4Chats.map(({ peer, lastMessage }) => [peer, lastMessage]))
+      for (const [peer, at] of nip17Chats()) {
+        if (peer === this.$store.state.keys.pub) continue
+        if (!latest.has(peer) || at > latest.get(peer)) latest.set(peer, at)
+      }
+      const before = new Set(this.chats.map((c) => c.peer))
+      this.chats = [...latest.entries()].map(([peer, lastMessage]) => ({ peer, lastMessage })).sort((a, b) => b.lastMessage - a.lastMessage)
+      const profileStore = useProfileStore()
+      this.chats.forEach(({ peer }) => { if (!before.has(peer)) profileStore.ensure(peer) })
     },
 
     markAllAsRead() {

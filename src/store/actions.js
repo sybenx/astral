@@ -14,6 +14,7 @@ import {
 import ndk, {addRelays, allowRelayLogin} from '../nostr/ndk'
 import {relaysFromEvent, relayListTags} from '../nostr/relayList'
 import {useMutesStore} from '../stores/mutes'
+import {startNip17, sendNip17} from '../nostr/nip17'
 import {getPubKeyTagWithRelay, lowerFirst} from '../utils/helpers'
 import {metadataFromEvent} from '../utils/event'
 import {countPost} from '../utils/accountCare'
@@ -39,6 +40,9 @@ export async function launch(store) {
 
   // the mute list applies everywhere; nothing waits for it
   useMutesStore().load(store).catch((err) => console.warn('[mutes] load failed', err))
+
+  // NIP-17 messages (gift wraps) next to the kind-4 ones
+  startNip17(store).catch((err) => console.warn('[nip17] start failed', err))
 
   // start listening for nostr events
   store.dispatch('restartMainSubscription')
@@ -179,6 +183,15 @@ export async function sendPost(store, {message, tags = [], kind = 1}) {
 
 export async function sendChatMessage(store, {now, pubkey, text, tags}) {
   if (text.length === 0) return
+
+  // NIP-17 when they have a DM inbox list (most current apps read only that);
+  // kind 4 otherwise, or if this sign-in can't do NIP-44
+  try {
+    const msg = await sendNip17(store, pubkey, text, tags)
+    if (msg) return msg
+  } catch (err) {
+    console.warn('[nip17] send failed, sending as kind 4', err?.message || err)
+  }
 
   let ciphertext = '???'
   try {

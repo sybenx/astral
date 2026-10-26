@@ -92,6 +92,7 @@
 import helpersMixin from '../utils/mixin'
 import { dbProfile, streamProfile, dbMessages, streamPeerIncomingMessages, streamPeerOutgoingMessages } from '../query'
 import BaseMessage from 'components/BaseMessage.vue'
+import { nip17State, nip17With } from '../nostr/nip17'
 import { useQuasar } from 'quasar'
 import { createMetaMixin } from 'quasar'
 
@@ -148,6 +149,9 @@ export default {
       if (this.$route.params.pubkey) return this.bech32ToHex(this.$route.params.pubkey)
       return ''
     },
+    nip17Version() {
+      return nip17State.version
+    },
     messagesGrouped() {
       let grouped = this.messages
         .reduce((acc, ev) => {
@@ -169,9 +173,17 @@ export default {
     }
   },
 
+  watch: {
+    // NIP-17 messages with this person, unwrapped as they arrive
+    nip17Version() {
+      this.addNip17()
+    },
+  },
+
   async mounted() {
     // load saved messages and start listening for new ones
     await this.start()
+    this.addNip17()
     this.scrollToBottom()
     this.resizeHeaderPlaceholder()
   },
@@ -263,6 +275,11 @@ export default {
         if (this.messagesSet.has(event.id)) continue
 
         this.messagesSet.add(event.id)
+        if (event.nip17) { // unwrapped already (src/nostr/nip17.js)
+          this.interpolateMessageMentions(event)
+          messagesFiltered.push(event)
+          continue
+        }
         await this.lock()
         event.text = await this.getPlaintext(event)
         if (event.text === '???' && !this.decryptError) this.decryptError = this.decryptFailure()
@@ -330,6 +347,15 @@ export default {
       } else if (event.pubkey === this.hexPubkey) {
           this.unreadMessagesSet.add(event.id)
       }
+    },
+
+    async addNip17() {
+      if (!this.hexPubkey) return
+      const fresh = nip17With(this.hexPubkey).filter((m) => !this.messagesSet.has(m.id))
+      if (!fresh.length) return
+      if (fresh.length === 1) return this.addMessage(fresh[0])
+      const added = await this.processMessages(fresh)
+      this.messages = this.messages.concat(added).sort((p, c) => p.created_at - c.created_at)
     },
 
     addSentMessage(event) {
