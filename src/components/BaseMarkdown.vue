@@ -15,6 +15,10 @@
       label='show full post'
       @click.stop="expand"
     />
+    <div v-if='invoices.length'>
+      <BaseLightningCard v-for='(invoice, index) in invoices' :key='index' :ln-string='invoice' class='lt-sm' style='padding: 1rem;'/>
+      <BaseLightningCard v-for='(invoice, index) in invoices' :key='index' :ln-string='invoice' class='gt-xs' row-or-column='row' style='padding: 1rem;'/>
+    </div>
   </div>
   <BaseLinkPreview v-if='links.length' :url='links[0]' />
 </template>
@@ -27,6 +31,7 @@ import deflist from 'markdown-it-deflist'
 import taskLists from 'markdown-it-task-lists'
 import emoji from 'markdown-it-emoji'
 import helpersMixin from '../utils/mixin'
+import BaseLightningCard from 'components/BaseLightningCard.vue'
 import BaseLinkPreview from 'components/BaseLinkPreview.vue'
 
 // Module-level ref so the markdown-it plugin (defined once, outside Vue) can
@@ -206,12 +211,14 @@ export default {
   mixins: [helpersMixin],
   emits: ['expand', 'resized'],
   components: {
+    BaseLightningCard,
     BaseLinkPreview,
   },
 
   data() {
     return {
       html: '',
+      invoices: [],
       links: [],
     }
   },
@@ -232,9 +239,15 @@ export default {
   },
 
   computed: {
-    // lightning invoices stay as plain text: Astral doesn't pay them
     parsedContent() {
-      return this.content
+      const bolt11Regex = /\b(?<i>(lnbc|LNBC)[0-9a-zA-Z]*1[0-9a-zA-Z]+)\b/g
+      const replacer = (match, index) => {
+        // if (this.lnString) return match
+        this.invoices.push(match.toLowerCase())
+        return ''
+      }
+      let replacedContent = this.content.replace(bolt11Regex, replacer)
+      return replacedContent
     }
   },
 

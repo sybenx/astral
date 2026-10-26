@@ -17,6 +17,8 @@
     "search-check": "node scripts/search-check.mjs"
   },
   "dependencies": {
+    "@getalby/bitcoin-connect": "^3.12.3",
+    "@getalby/sdk": "^7.0.0",
     "@noble/ciphers": "^2.1.1",
     "@noble/curves": "^2.0.1",
     "@noble/hashes": "^2.0.1",
@@ -29,6 +31,7 @@
     "dompurify": "^3.1.0",
     "emoji-mart-vue-fast": "^15.0.0",
     "identicon.js": "2.3",
+    "light-bolt11-decoder": "^3.1.1",
     "markdown-it": "^13.0.2",
     "markdown-it-deflist": "2.1",
     "markdown-it-emoji": "^2.0.2",

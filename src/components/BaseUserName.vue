@@ -27,6 +27,10 @@
         {{ headerMode ? niceNIP05 : niceShortNIP05 }}
       </div>
     </div>
+    <div v-if='headerMode && lnurlToLnAddr($store.getters.profileLud06(pubkey))'  style='opacity: .9; font-size: 90%; font-weight: 300; line-height: 90%'
+    >
+      ⚡️{{ lnurlToLnAddr($store.getters.profileLud06(pubkey)) }}
+    </div>
   </div>
 </template>
 

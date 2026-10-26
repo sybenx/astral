@@ -105,6 +105,12 @@
         />
       </div>
     </q-item>
+    <div
+      v-if="item.title === 'wallet' && !compactMode && $store.state.keys.pub"
+      class='flex justify-end gt-sm q-py-xs'
+    >
+      <BaseWalletCard compact/>
+    </div>
     </template>
     <!-- <q-separator v-if='!compactMode' color='accent' spaced/> -->
     <div v-if='!compactMode' style='min-height: 1rem;'/>
@@ -161,6 +167,7 @@ import helpersMixin from '../utils/mixin'
 import BaseUserCard from 'components/BaseUserCard.vue'
 import BaseButtonPost from 'components/BaseButtonPost.vue'
 import BaseButtonSetUser from 'components/BaseButtonSetUser.vue'
+import BaseWalletCard from 'components/BaseWalletCard.vue'
 
 export default defineComponent({
   name: 'TheUserMenu',
@@ -217,6 +224,12 @@ export default defineComponent({
           match: 'messages',
         },
         {
+          title: 'wallet',
+          icon: 'account_balance_wallet',
+          to: '/wallet',
+          match: 'wallet',
+        },
+        {
           title: 'settings',
           icon: 'settings',
           to: '/settings',
@@ -237,6 +250,7 @@ export default defineComponent({
     BaseUserCard,
     BaseButtonPost,
     BaseButtonSetUser,
+    BaseWalletCard,
   },
 
   computed: {

@@ -11,6 +11,7 @@ import DOMPurify from 'dompurify'
 import { identiconFor } from './avatar'
 import { Buffer } from 'buffer'
 import * as utils from './lnurl'
+import { fetchZapInvoice } from '../nostr/zap'
 const { formatDate } = date
 
 
@@ -441,6 +442,23 @@ export default {
       } catch (error) {
         // console.log('lnAddrToLnurl error: ', error, ' for ', lnAddr)
       }
+    },
+    async getInvoice(lnString, amount, pubkey = null, eventId = null, comment = '') {
+      // Already a bolt11 invoice — nothing to fetch.
+      if (lnString.toLowerCase().indexOf('lnbc') === 0) return lnString
+      if (!amount) return lnString
+
+      // Zap-aware: attaches a signed NIP-57 zap request when the recipient's
+      // LNURL endpoint supports it, otherwise falls back to a plain tip.
+      // Throws on error — callers handle the notification.
+      return await fetchZapInvoice({
+        store: this.$store,
+        lnString,
+        recipientPubkey: pubkey,
+        amountSats: amount,
+        comment,
+        eventId
+      })
     }
   }
 }

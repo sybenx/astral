@@ -16,3 +16,27 @@ export function fetchReactionsFromCache(eventId) {
     setTimeout(() => resolve([...events.values()]), 300)
   })
 }
+
+// Fetch kind-9735 zap receipts for an event. Hits cache + relays in parallel
+// so the count appears even when receipts aren't in the local Dexie cache.
+// Groupable so NDK batches all visible-post queries into one relay request.
+export function fetchZapTotalFromCache(eventId) {
+  return new Promise((resolve) => {
+    let msats = 0
+    const sub = ndk.subscribe(
+      { kinds: [9735], '#e': [eventId] },
+      {
+        closeOnEose: true,
+        groupable: true,
+        groupableDelay: 200,
+        cacheUsage: NDKSubscriptionCacheUsage.PARALLEL,
+      }
+    )
+    sub.on('event', (e) => {
+      const amtTag = (e.tags || []).find(t => t[0] === 'amount')
+      if (amtTag?.[1]) msats += parseInt(amtTag[1], 10) || 0
+    })
+    sub.on('eose', () => resolve(Math.floor(msats / 1000)))
+    setTimeout(() => resolve(Math.floor(msats / 1000)), 3000)
+  })
+}

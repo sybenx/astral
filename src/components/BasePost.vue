@@ -292,6 +292,27 @@
                 </q-menu>
               </q-tab>
 
+              <!-- zap -->
+              <q-tab name='zap' class='no-padding' aria-label='tip' @click.stop='$store.getters.profileLud06(event.pubkey) ? showZapDialog = true : null'>
+                <div class='flex row no-wrap items-center' style='gap: .3rem;'>
+                  <q-icon
+                    name='bolt'
+                    :size='iconSize'
+                    :style='$store.getters.profileLud06(event.pubkey) ? "" : "opacity: .25;"'
+                  />
+                  <span v-if='zapTotal' class='action-count'>{{ zapTotal >= 1000 ? (zapTotal / 1000).toFixed(1) + "k" : zapTotal }}</span>
+                </div>
+                <q-tooltip>tip</q-tooltip>
+                <q-dialog v-model='showZapDialog' @click.stop>
+                  <BaseLightningCard
+                    :ln-string='$store.getters.profileLud06(event.pubkey)'
+                    :pubkey='event.pubkey'
+                    style='padding: 1.5rem;'
+                    @paid='showZapDialog = false'
+                  />
+                </q-dialog>
+              </q-tab>
+
               <!-- embed / link — at the end -->
               <q-tab aria-label='copy event ID' name='embed' class='no-padding'>
                 <q-icon name='link' :size='iconSize'/>
@@ -363,8 +384,9 @@ import BaseButtonInfo from 'components/BaseButtonInfo.vue'
 import BaseButtonCopy from 'components/BaseButtonCopy.vue'
 import BaseMarkdown from 'components/BaseMarkdown.vue'
 import BaseRelayRecommend from 'components/BaseRelayRecommend.vue'
+import BaseLightningCard from 'components/BaseLightningCard.vue'
 import DOMPurify from 'dompurify'
-import { fetchReactionsFromCache } from '../nostr/reactions'
+import { fetchReactionsFromCache, fetchZapTotalFromCache } from '../nostr/reactions'
 import { useUserStore } from '../stores/user'
 import { useBookmarksStore } from '../stores/bookmarks'
 import { useMutesStore } from '../stores/mutes'
@@ -392,6 +414,7 @@ export default defineComponent({
     BaseButtonCopy,
     BaseMarkdown,
     BaseRelayRecommend,
+    BaseLightningCard,
   },
 
   data() {
@@ -414,6 +437,8 @@ export default defineComponent({
       reactionCount: 0,
       hasReacted: false,
       reactSending: false,
+      showZapDialog: false,
+      zapTotal: 0,
     }
   },
 
@@ -594,6 +619,7 @@ export default defineComponent({
     this.isLongForm = this.event.content.length > 600 || this.event.content.split(/\r\n|\r|\n/).length > 10
     if (!this.isEmbeded && this.event.kind === 1) {
       this.loadReactions()
+      this.loadZaps()
       if (this.$store.state.keys.pub) checkMyReaction(this.$store, this.event.id)
     }
   },
@@ -684,6 +710,10 @@ export default defineComponent({
       const reactions = await fetchReactionsFromCache(this.event.id)
       this.reactionCount = reactions.length
       this.hasReacted = myPub ? reactions.some((r) => r.pubkey === myPub) : false
+    },
+
+    async loadZaps() {
+      this.zapTotal = await fetchZapTotalFromCache(this.event.id)
     },
 
     async sendReaction() {

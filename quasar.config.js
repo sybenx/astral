@@ -23,7 +23,7 @@ export default defineConfig((ctx) => {
     // app boot file (/src/boot)
     // --> boot files are part of 'main.js'
     // https://v2.quasar.dev/quasar-cli-vite/boot-files
-    boot: ['stale-chunks', 'pinia', 'vuex', 'auth', 'global-components', 'i18n'],
+    boot: ['stale-chunks', 'pinia', 'vuex', 'auth', 'bitcoin-connect', 'global-components', 'i18n'],
 
     // https://v2.quasar.dev/quasar-cli-vite/quasar-config-js#css
     css: ['app.scss'],
@@ -85,7 +85,7 @@ export default defineConfig((ctx) => {
         viteConf.define['process.version'] = JSON.stringify('v18.0.0')
       },
 
-      // Browser-shim Node builtins that the nostr stack reaches for
+      // Browser-shim Node builtins that the nostr/wallet stack reaches for
       // (Buffer, crypto, stream) — replaces the old webpack ProvidePlugin.
       vitePlugins: [
         [
@@ -168,8 +168,8 @@ export default defineConfig((ctx) => {
         ]
         cfg.runtimeCaching = [
           {
-            urlPattern: ({ url, sameOrigin }) => sameOrigin && /^\/assets\//.test(url.pathname),
-            handler: 'CacheFirst', // hashed files: they never change
+            urlPattern: ({ url, sameOrigin }) => sameOrigin && /^\/(assets|wallet-icons)\//.test(url.pathname),
+            handler: 'CacheFirst', // hashed or static files: they never change
             options: { cacheName: 'astral-static', expiration: { maxEntries: 200 } }
           }
         ]

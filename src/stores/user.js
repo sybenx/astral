@@ -15,7 +15,7 @@ let _latestKind3At = 0
 
 function buildConfig(saved) {
   const { timestamps = {}, preferences = {} } = saved || {}
-  const { color = {}, font = 'Roboto' } = preferences
+  const { color = {}, font = 'Roboto', lightningTips = {} } = preferences
   return {
     timestamps: {
       lastUserMainSync: timestamps.lastUserMainSync || 0,
@@ -31,7 +31,14 @@ function buildConfig(saved) {
           : color.accent,
         background: color.background || '#1f1f1f'
       },
-      font
+      font,
+      lightningTips: {
+        enabled: lightningTips.enabled !== false,
+        lastMode: lightningTips.lastMode || 'copy',
+        lastWallet: lightningTips.lastWallet || null,
+        presets: lightningTips.presets || [10, 100, 1000],
+        oneClick: lightningTips.oneClick || { enabled: false, amount: 10 }
+      }
     }
   }
 }
@@ -98,6 +105,11 @@ export const useUserStore = defineStore('user', {
 
     setConfig(key, value) {
       this.config[key] = value
+      LocalStorage.set('config', this.config)
+    },
+
+    setConfigLightningTips(key, value) {
+      this.config.preferences.lightningTips[key] = value
       LocalStorage.set('config', this.config)
     },
 
