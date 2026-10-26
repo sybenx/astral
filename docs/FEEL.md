@@ -1,5 +1,9 @@
 # What makes Astral feel like Astral
 
+> **The rule, above all the others: keep it true; mostly fix bugs and jank.** Astral stays true to the
+> original. The work is fixing what's broken or janky. No new features unless the user asks for one.
+> [confirmed 2026-10-26]
+
 A checklist for any change. The sources are the original astral (monlovesmango, last upstream commit
 `9216578`, Feb 2023), the current app and DEV_NOTES.md. Each rule is marked:
 

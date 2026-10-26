@@ -1,5 +1,12 @@
 # Updates worth making
 
+> **2026-10-26, the user's rule: "keep it true, mostly fix bugs and jank."** See the top of FEEL.md.
+> Done: #1, #2, #3, #4, #5, #7, #8, #11, #12–#16, #19, #20, #21. Still open, judged by that rule:
+> - **Bug or jank fixes, fine to do:** #10 (the rest of the memory sweep: iOS tab crashes) and #9's
+>   remaining bundle split (first load on a phone).
+> - **Wait until the user asks:** #6 (Vuex → Pinia: a refactor, not a fix), #17 (lists as feeds),
+>   #22 (NIP-17 DMs), #18's profile-search half (search was already redone). #23 stays declined.
+
 Read with [FEEL.md](FEEL.md). **Decided 2026-10-24:** the user approved #1, #2, #9–#14, #20 (lowercase),
 and #21. #23 (Spark) is declined. Everything else waits until asked. Each item has a tag:
 
