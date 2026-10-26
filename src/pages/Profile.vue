@@ -245,12 +245,13 @@ export default defineComponent({
       this.followersSeeded = false
       let relays = Object.keys(this.$store.state.relays).length ? Object.keys(this.$store.state.relays) : Object.keys(this.$store.state.defaultRelays)
 
+      // posts first: they don't need the profile, which took up to 4 s to settle
+      this.loadMore()
       let profile = await dbProfile(this.hexPubkey)
       if (profile) this.$store.dispatch('handleAddingProfileEventToCache', profile)
       this.sub.streamProfile = await streamProfile({authors: [this.hexPubkey], relays}, async events => {
         for (let event of events) this.$store.dispatch('handleAddingProfileEventToCache', event)
       })
-      this.loadMore()
 
       // let timer = setTimeout(async() => {
       //     this.loadMore()
