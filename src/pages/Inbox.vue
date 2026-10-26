@@ -74,7 +74,7 @@ import { dbChats, streamMainIncomingMessages, streamMainOutgoingMessages } from 
 import helpersMixin from '../utils/mixin'
 import { useProfileStore } from '../stores/profile'
 import { useRelayStore } from '../stores/relay'
-import { createMetaMixin } from 'quasar'
+import { createMetaMixin, debounce } from 'quasar'
 
 const metaData = {
   title: 'astral - inbox',
@@ -119,14 +119,16 @@ export default defineComponent({
       await this.getChats()
 
       const pub = this.$store.state.keys.pub
+      // a message arriving after the first load refreshes the list (once per burst)
+      const refreshSoon = debounce(() => this.getChats(), 2000)
       this.sub.in = streamMainIncomingMessages(
         { authors: [pub], relays, limit: 500 },
-        null,
+        () => { if (!this.loading) refreshSoon() },
         () => { this.getChats(); this.loading = false }
       )
       this.sub.out = streamMainOutgoingMessages(
         { authors: [pub], relays, limit: 500 },
-        null,
+        () => { if (!this.loading) refreshSoon() },
         () => { this.getChats(); this.loading = false }
       )
       this.loading = false

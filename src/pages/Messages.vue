@@ -18,6 +18,9 @@
         />
       </div>
       <!-- <q-separator color='accent' size='1px' spaced/> -->
+      <div v-if='decryptError' class='text-negative q-px-md q-py-xs' style='font-size: .85rem;'>
+        couldn’t open your messages: {{ decryptError }}
+      </div>
       <div class='relative-position'>
         <div class='absolute-top flex justify-center'>
           <span
@@ -130,6 +133,7 @@ export default {
       mutex: null,
       replyEvent: null,
       currentDatestamp: null,
+      decryptError: null, // why messages show as ??? (watch-only sign-in, signer refused…)
     }
   },
 
@@ -261,6 +265,7 @@ export default {
         this.messagesSet.add(event.id)
         await this.lock()
         event.text = await this.getPlaintext(event)
+        if (event.text === '???' && !this.decryptError) this.decryptError = this.decryptFailure()
         this.unlock()
         this.interpolateMessageMentions(event)
         messagesFiltered.push(event)

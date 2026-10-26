@@ -11,10 +11,10 @@ import {
   dbSave,
   publish,
 } from '../query'
-import {addRelays} from '../nostr/ndk'
+import ndk, {addRelays} from '../nostr/ndk'
 import {relaysFromEvent, relayListTags} from '../nostr/relayList'
 import {useMutesStore} from '../stores/mutes'
-import {getPubKeyTagWithRelay} from '../utils/helpers'
+import {getPubKeyTagWithRelay, lowerFirst} from '../utils/helpers'
 import {metadataFromEvent} from '../utils/event'
 import {countPost} from '../utils/accountCare'
 import * as helpersMixin from '../utils/mixin'
@@ -181,11 +181,14 @@ export async function sendChatMessage(store, {now, pubkey, text, tags}) {
     if (store.state.keys.priv) {
       ciphertext = await nip04.encrypt(store.state.keys.priv, pubkey, text)
     } else if (
-      (await window?.nostr?.getPublicKey?.()) === store.state.keys.pub
+      window?.nostr?.nip04 && (await window?.nostr?.getPublicKey?.()) === store.state.keys.pub
     ) {
       ciphertext = await window.nostr.nip04.encrypt(pubkey, text)
+    } else if (ndk.signer?.encrypt) {
+      // a remote signer (Cosign / bunker)
+      ciphertext = await ndk.signer.encrypt(ndk.getUser({ pubkey }), text, 'nip04')
     } else {
-      throw new Error('no private key available to encrypt!')
+      throw new Error('this sign-in can’t encrypt (it has your public key only)')
     }
 
     let unpublishedEvent = {
@@ -204,7 +207,7 @@ export async function sendChatMessage(store, {now, pubkey, text, tags}) {
     // return event
   } catch (error) {
     Notify.create({
-      message: `could not encrypt message: ${error}`,
+      message: `couldn’t send the message: ${lowerFirst(error?.message || String(error))}`,
       color: 'negative'
     })
     return

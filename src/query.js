@@ -94,7 +94,10 @@ const FRESH = { cacheUsage: NDKSubscriptionCacheUsage.PARALLEL }
 // Generic live subscription that matches the old stream() contract. filterFn
 // maps a settings object to { filter, relays }.
 function makeStream(filterFn) {
-  return function (settings = {}, cb = () => {}, eoseCb = () => {}) {
+  return function (settings = {}, cb, eoseCb) {
+    // callers pass null for "no callback"; a default parameter only covers undefined
+    if (typeof cb !== 'function') cb = () => {}
+    if (typeof eoseCb !== 'function') eoseCb = () => {}
     let sub = null
 
     const start = (s) => {

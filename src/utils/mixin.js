@@ -1,5 +1,5 @@
 import Tribute from 'tributejs'
-import {shorten, shortenList} from './helpers'
+import {shorten, shortenList, lowerFirst} from './helpers'
 // import { stringify } from 'JSON'
 import {date} from 'quasar'
 import {nip04, nip19} from 'nostr-tools'
@@ -11,8 +11,10 @@ import DOMPurify from 'dompurify'
 import { identiconFor } from './avatar'
 import { Buffer } from 'buffer'
 import * as utils from './lnurl'
+import ndk from '../nostr/ndk'
 import { fetchZapInvoice } from '../nostr/zap'
 const { formatDate } = date
+let lastDecryptError = null
 
 
 function formatDateI18n(date, format) {
@@ -324,20 +326,29 @@ export default {
       }
     },
 
+    // NIP-04 decrypt with whatever signed you in: a key in this browser, the
+    // extension, or a remote signer (Cosign / bunker) through NDK. On failure
+    // returns '???' and keeps the reason in lastDecryptError.
     async decrypt(peer, ciphertext, store = this.$store) {
       try {
         if (store.state.keys.priv) {
-          return nip04.decrypt(store.state.keys.priv, peer, ciphertext)
-        } else if (
-          (await window?.nostr?.getPublicKey?.()) === store.state.keys.pub
-        ) {
-          return await window.nostr.nip04.decrypt(peer, ciphertext)
-        } else {
-          throw new Error('no private key available to decrypt!')
+          return await nip04.decrypt(store.state.keys.priv, peer, ciphertext)
         }
+        if (window?.nostr?.nip04 && (await window.nostr.getPublicKey?.()) === store.state.keys.pub) {
+          return await window.nostr.nip04.decrypt(peer, ciphertext)
+        }
+        if (ndk.signer?.decrypt) {
+          return await ndk.signer.decrypt(ndk.getUser({ pubkey: peer }), ciphertext, 'nip04')
+        }
+        throw new Error(store.state.keys.pub ? 'this sign-in can’t decrypt (it has your public key only)' : 'not signed in')
       } catch (err) {
+        lastDecryptError = lowerFirst(err?.message || String(err))
         return '???'
       }
+    },
+
+    decryptFailure() {
+      return lastDecryptError
     },
 
     isKey(key) {
