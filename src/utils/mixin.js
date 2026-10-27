@@ -158,7 +158,9 @@ export default {
       }
       // NIP-27: nostr:npub / nprofile / note / nevent / naddr entities embedded
       // in content. The 2022 client only understood the deprecated #[index]
-      // form, so these rendered as raw "nostr:npub1..." text.
+      // form, so these rendered as raw "nostr:npub1..." text. Some apps leave
+      // out the "nostr:" (a bare nevent1… for a quote): those count too, but
+      // not inside a link (https://njump.me/nevent1… stays a link).
       const nostrEntityReplacer = (match, entity) => {
         try {
           const {type, data} = nip19.decode(entity)
@@ -179,12 +181,15 @@ export default {
             mentions.mentionEvents.push(data.id)
             return `[${shorten(entity)}](/${entity})`
           }
+          // an article or other addressable post: astral can't open those, so
+          // a short link to njump instead of the raw string
+          if (type === 'naddr') return `[${shorten(entity)}](https://njump.me/${entity})`
         } catch (_) { /* not a valid entity — leave as written */ }
         return match
       }
 
       let nostrReplacedText = text.replace(
-        /nostr:((?:npub1|nprofile1|note1|nevent1|naddr1)[023456789acdefghjklmnpqrstuvwxyz]+)/g,
+        /(?:nostr:|(?<![\w/:.=?#&@-]))((?:npub1|nprofile1|note1|nevent1|naddr1)[023456789acdefghjklmnpqrstuvwxyz]{8,})/g,
         nostrEntityReplacer
       )
       let replacedText = nostrReplacedText.replace(/#\[(\d+)\]/g, replacer)
@@ -203,6 +208,10 @@ export default {
         }
       }
       tags.filter(([t, v, _, marker]) => (t === 'e') && v && marker === 'mention').forEach(([t, v], index) => {
+        if (!mentions.mentionEvents.includes(v)) mentions.mentionEvents.push(v)
+      })
+      // NIP-18 quotes: a q tag (event id), also without an e "mention" tag
+      tags.filter(([t, v]) => t === 'q' && /^[0-9a-f]{64}$/.test(v || '')).forEach(([_, v]) => {
         if (!mentions.mentionEvents.includes(v)) mentions.mentionEvents.push(v)
       })
       tags.filter(([t, v]) => (t === 'e') && v).forEach(([t, v], index) => {
