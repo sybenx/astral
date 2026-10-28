@@ -1,31 +1,36 @@
 // The posts that feed replies answer, so a reply can show under its parent
 // (as in the original astral). Only mounted posts ask (the feed is virtual),
 // and requests are batched: up to 50 ids per relay query, one query at a time,
-// cache first. Ids already known, in flight, or not found before are skipped.
-import { getEvents } from '../query'
+// cache first. Ids already known or in flight are skipped, and so are ids not
+// found in the last few minutes. Each id is also asked where the post citing it
+// says to look (relay hints, its authors' relays).
+import { getEventsCited } from '../query'
 import * as helpersMixin from '../utils/mixin'
 
 const BATCH = 50
 const DELAY = 250 // ms to gather ids before asking
 const MISSED_CAP = 2000
+const RETRY_AFTER = 3 * 60 * 1000 // ms before an id not found is asked again
 
-const wanted = new Set()
+const wanted = new Map() // id → the post citing it
 const inFlight = new Set()
-const missed = new Set()
+const missed = new Map() // id → when it wasn't found
 let timer = null
 let running = false
 
 // lookup(id) can return an event the caller already holds (the feed engine's
 // own Map), which goes straight into the cache without a relay query.
-export function wantEvents(store, ids, lookup) {
+// `from`: the post citing these ids.
+export function wantEvents(store, ids, lookup, from) {
   for (const id of ids) {
-    if (!id || id in store.state.eventsCache || inFlight.has(id) || missed.has(id)) continue
+    if (!id || id in store.state.eventsCache || inFlight.has(id)) continue
+    if (Date.now() - (missed.get(id) || 0) < RETRY_AFTER) continue
     const local = lookup?.(id)
     if (local) {
       addToCache(store, local)
       continue
     }
-    wanted.add(id)
+    if (!wanted.has(id) || from) wanted.set(id, from)
   }
   schedule(store)
 }
@@ -43,8 +48,10 @@ function addToCache(store, event) {
 async function flush(store) {
   timer = null
   running = true
-  const ids = [...wanted].slice(0, BATCH)
+  const ids = [...wanted.keys()].slice(0, BATCH)
+  const from = new Set()
   for (const id of ids) {
+    if (wanted.get(id)) from.add(wanted.get(id))
     wanted.delete(id)
     inFlight.add(id)
   }
@@ -53,7 +60,7 @@ async function flush(store) {
     : Object.keys(store.state.defaultRelays)
   let events = []
   try {
-    events = (await getEvents({ ids, relays })) || []
+    events = (await getEventsCited({ ids, relays, from: [...from] })) || []
   } catch {
     /* relays unreachable: treated as not found */
   }
@@ -65,9 +72,10 @@ async function flush(store) {
   }
   for (const id of ids) {
     inFlight.delete(id)
-    if (!found.has(id)) missed.add(id)
+    if (found.has(id)) missed.delete(id)
+    else missed.set(id, Date.now())
   }
-  if (missed.size > MISSED_CAP) missed.delete(missed.values().next().value)
+  if (missed.size > MISSED_CAP) missed.delete(missed.keys().next().value)
   running = false
   schedule(store)
 }

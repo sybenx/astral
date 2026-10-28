@@ -20,8 +20,23 @@ export const DEFAULT_RELAYS = [
   'wss://relay.nos.social'
 ]
 
+// Well-known relays offered in Settings (and preferred when astral has to go
+// looking through someone's relay list).
+export const OPTIONAL_RELAYS = [
+  'wss://relay.damus.io',
+  'wss://nos.lol',
+  'wss://relay.primal.net',
+  'wss://nostr.wine',
+  'wss://offchain.pub',
+  'wss://relay.nos.social',
+  'wss://nostr.oxtr.dev',
+  'wss://nostr.mom',
+  'wss://relay.snort.social',
+  'wss://relay.nostr.wirednet.jp',
+]
+
 // Outbox/discovery relays used for resolving profiles and relay lists.
-const OUTBOX_RELAYS = ['wss://purplepag.es', 'wss://user.kindpag.es'] // relay.nostr.band is gone
+export const OUTBOX_RELAYS = ['wss://purplepag.es', 'wss://user.kindpag.es'] // relay.nostr.band is gone
 
 function storedRelayUrls() {
   // The legacy Vuex layer persists relays as { [url]: {read, write} }.

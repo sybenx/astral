@@ -97,7 +97,7 @@ export default {
   },
 
   mounted() {
-    if (this.fetchRootReply) wantEvents(this.$store, [this.root, this.reply], this.lookup)
+    if (this.fetchRootReply) wantEvents(this.$store, [this.root, this.reply], this.lookup, this.events[0])
   },
 
   methods: {

@@ -15,8 +15,9 @@
 //     events per emission, eoseCb once on EOSE, and return { update, cancel }.
 
 import { NDKRelaySet, NDKSubscriptionCacheUsage } from '@nostr-dev-kit/ndk'
-import ndk, { connect, NDKEvent } from './nostr/ndk'
+import ndk, { connect, NDKEvent, DEFAULT_RELAYS, OPTIONAL_RELAYS, OUTBOX_RELAYS } from './nostr/ndk'
 import { splitAuthors } from './nostr/filters'
+import { relaysFromEvent } from './nostr/relayList'
 
 const now = () => Math.round(Date.now() / 1000)
 
@@ -41,7 +42,9 @@ function relaySet(relays) {
 // (notably tag filters like #p) when a relay never sends EOSE, which left pages
 // like Notifications blank. Driving the subscription ourselves guarantees the
 // promise always settles with whatever arrived.
-function collect(filter, relays, { timeout = 4000, cacheUsage = NDKSubscriptionCacheUsage.CACHE_FIRST } = {}) {
+// `untilAll`: ignore EOSE and wait for every id (or the timeout). NDK reports
+// EOSE once the quick relays are done, before fresh connections answer.
+function collect(filter, relays, { timeout = 4000, cacheUsage = NDKSubscriptionCacheUsage.CACHE_FIRST, untilAll = false } = {}) {
   return new Promise((resolve) => {
     const events = new Map()
     let settled = false
@@ -66,8 +69,10 @@ function collect(filter, relays, { timeout = 4000, cacheUsage = NDKSubscriptionC
     sub.on('event', (event) => {
       const raw = toRaw(event)
       if (raw && raw.id) events.set(raw.id, raw)
+      // asked for by id and all of them here: no need to wait on slow relays
+      if (filter.ids && filter.ids.every((id) => events.has(id))) finish(true)
     })
-    sub.on('eose', () => finish(true))
+    if (!untilAll) sub.on('eose', () => finish(true))
     const timer = setTimeout(() => finish(false), timeout)
   })
 }
@@ -179,6 +184,83 @@ export async function getEvents(settings = {}) {
   const { ids, relays } = settings
   if (!ids?.length) return []
   return fetchMany({ ids }, relays)
+}
+
+// Where the posts citing an id say to look for it: the relay hints in their
+// e/q tags, and its author (the tag's pubkey, else the people they tag).
+function citedHints(ids, from) {
+  const relays = new Set()
+  const authors = new Set()
+  for (const event of from) {
+    let noPubkey = false
+    for (const [t, v, relay, , pubkey] of event?.tags || []) {
+      if ((t !== 'e' && t !== 'q') || !ids.includes(v)) continue
+      if (/^wss?:\/\//.test(relay || '')) relays.add(relay)
+      if (/^[0-9a-f]{64}$/.test(pubkey || '')) authors.add(pubkey)
+      else noPubkey = true
+    }
+    if (!noPubkey) continue
+    authors.add(event.pubkey)
+    const people = (event.tags || []).filter(([t, v]) => t === 'p' && /^[0-9a-f]{64}$/.test(v || ''))
+    for (const [, v] of people.slice(0, 5)) authors.add(v)
+  }
+  return { relays: [...relays], authors: [...authors] }
+}
+
+// Old relay lists are mostly dead relays, with the live ones anywhere in them,
+// and opening dozens of connections at once holds up the live ones. Take from
+// each author in turn, relays astral knows first, and only so many.
+const MAX_EXTRA = 20
+
+// The relays these people publish to (NIP-65 write relays).
+async function writeRelaysOf(authors) {
+  if (!authors.length) return []
+  const lists = await collect(
+    { kinds: [10002], authors },
+    [...OUTBOX_RELAYS, ...DEFAULT_RELAYS],
+    { ...FRESH, timeout: 4000 }
+  )
+  const newest = new Map()
+  for (const e of lists) if (!newest.has(e.pubkey) || e.created_at > newest.get(e.pubkey).created_at) newest.set(e.pubkey, e)
+  const perAuthor = [...newest.values()].map((e) =>
+    Object.entries(relaysFromEvent(e)).filter(([url, { write }]) => write && /^wss:\/\//.test(url)).map(([url]) => url))
+  const urls = []
+  for (let i = 0; perAuthor.some((list) => i < list.length); i++) {
+    for (const list of perAuthor) if (i < list.length) urls.push(list[i])
+  }
+  return urls
+}
+
+const bareRelay = (u) => (u || '').replace(/\/+$/, '').toLowerCase()
+
+// Posts that others point at (a reply's parent, its thread's root) often sit on
+// relays you don't use. Ask yours, the relays the citing posts name and
+// astral's defaults at once; whatever is still missing, ask the named relays
+// again and where its authors publish, giving those time to connect.
+// `from`: the posts that cite these ids.
+export async function getEventsCited(settings = {}) {
+  const { ids, relays = [], from = [] } = settings
+  if (!ids?.length) return []
+  await connect()
+  const hints = citedHints(ids, from)
+  const outbox = writeRelaysOf(hints.authors).catch(() => [])
+  const first = [...new Map([...relays, ...hints.relays, ...DEFAULT_RELAYS].map((u) => [bareRelay(u), u])).values()]
+  const found = new Map()
+  const take = (events) => { for (const e of events) if (ids.includes(e.id)) found.set(e.id, e) }
+  take(await collect({ ids }, first))
+  const missing = ids.filter((id) => !found.has(id))
+  if (!missing.length) return [...found.values()]
+  const known = new Set([...relays, ...DEFAULT_RELAYS].map(bareRelay))
+  const familiar = new Set(OPTIONAL_RELAYS.map(bareRelay))
+  const outboxUrls = await outbox
+  const ranked = [
+    ...hints.relays,
+    ...outboxUrls.filter((u) => familiar.has(bareRelay(u))),
+    ...outboxUrls.filter((u) => !familiar.has(bareRelay(u))),
+  ]
+  const extra = [...new Map(ranked.filter((u) => !known.has(bareRelay(u))).map((u) => [bareRelay(u), u])).values()]
+  if (extra.length) take(await collect({ ids: missing }, extra.slice(0, MAX_EXTRA), { timeout: 6000, untilAll: true }))
+  return [...found.values()]
 }
 
 export async function getNotes(settings = {}) {

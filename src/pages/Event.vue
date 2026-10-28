@@ -42,7 +42,7 @@
 
 <script>
 import { defineComponent } from 'vue'
-import {dbStreamEvent, dbStreamTagKind} from '../query'
+import {dbStreamEvent, dbStreamTagKind, getEventsCited} from '../query'
 import helpersMixin from '../utils/mixin'
 import {addToThread} from '../utils/threads'
 import BaseRelayList from 'components/BaseRelayList.vue'
@@ -175,7 +175,10 @@ export default defineComponent({
         this.event = event
         this.showPostFirst()
         if (getAncestorsChildren) {
-          if (this.event.interpolated.replyEvents.length) this.subRootAncestor()
+          if (this.event.interpolated.replyEvents.length) {
+            this.subRootAncestor()
+            this.fetchMissingAncestors()
+          }
           this.subAncestorsChildren()
         }
         this.useProfile(event.pubkey)
@@ -190,6 +193,7 @@ export default defineComponent({
       if (this.sub.rootAncestor) this.sub.rootAncestor.cancel()
 
       this.replying = false
+      this.ancestorsRun = (this.ancestorsRun || 0) + 1
       this.ancestors = []
       this.ancestorsSeen = new Map()
       this.ancestorIds = []
@@ -227,6 +231,30 @@ export default defineComponent({
           }
         }
       })
+    },
+
+    // The thread's subscriptions only ask your relays, and only for posts
+    // tagging the root. Parents that live elsewhere are fetched by id, one
+    // step up at a time, where the post citing each says to look (its relay
+    // hints, its authors' relays); the root comes along with the first.
+    async fetchMissingAncestors() {
+      const run = this.ancestorsRun
+      const relays = Object.keys(this.$store.state.relays).length ? Object.keys(this.$store.state.relays) : Object.keys(this.$store.state.defaultRelays)
+      const tried = new Set()
+      while (run === this.ancestorsRun && this.event) {
+        const from = this.ancestors[0] || this.event
+        const refs = from.interpolated.replyEvents
+        const parentId = refs[refs.length - 1]
+        if (!parentId || tried.has(parentId) || this.ancestorsSeen.has(parentId)) return
+        const ids = [parentId]
+        const rootId = this.event.interpolated.replyEvents[0]
+        if (!this.rootAncestor && rootId && !tried.has(rootId)) ids.push(rootId)
+        ids.forEach(id => tried.add(id))
+        const events = await getEventsCited({ ids, relays, from: [from, this.event] })
+        if (run !== this.ancestorsRun) return
+        // root first: the chain links up to it as the parents arrive
+        events.sort((a, b) => a.created_at - b.created_at).forEach(event => this.processAncestorEvent(event))
+      }
     },
 
     processAncestorEvent(event) {

@@ -1,22 +1,9 @@
 import {LocalStorage} from 'quasar'
-import { DEFAULT_RELAYS } from '../nostr/ndk'
+import { DEFAULT_RELAYS, OPTIONAL_RELAYS } from '../nostr/ndk'
 
 const isClientUsingTor = () => window.location.hostname.endsWith('.onion')
 
 const mainnetDefaultRelays = Object.fromEntries(DEFAULT_RELAYS.map(url => [url, { read: true, write: true }]))
-
-const mainnetOptionalRelays = [
-  'wss://relay.damus.io',
-  'wss://nos.lol',
-  'wss://relay.primal.net',
-  'wss://nostr.wine',
-  'wss://offchain.pub',
-  'wss://relay.nos.social',
-  'wss://nostr.oxtr.dev',
-  'wss://nostr.mom',
-  'wss://relay.snort.social',
-  'wss://relay.nostr.wirednet.jp',
-]
 
 const torDefaultRelays = {
   'ws://jgqaglhautb4k6e6i2g34jakxiemqp6z4wynlirltuukgkft2xuglmqd.onion': {
@@ -31,7 +18,7 @@ const torDefaultRelays = {
 
 export default function () {
   const defaultRelays = isClientUsingTor() ? torDefaultRelays : mainnetDefaultRelays
-  const optionalRelaysList = isClientUsingTor() ? Object.keys(torDefaultRelays) : mainnetOptionalRelays
+  const optionalRelaysList = isClientUsingTor() ? Object.keys(torDefaultRelays) : OPTIONAL_RELAYS
   let config = LocalStorage.getItem('config')
   let { timestamps, preferences } = config || {}
   let { lastUserMainSync = 0, lastFeedLoad = 0 } = timestamps || {}
