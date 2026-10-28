@@ -58,7 +58,7 @@ const routes = [
         name: 'profile',
       },
       {
-        path: '/hashtag/:hashtagId([a-zA-Z0-9_]{1,63})',
+        path: '/hashtag/:hashtagId([^/]{1,256})',
         component: () => import('pages/Hashtag.vue'),
         name: 'hashtag',
       },

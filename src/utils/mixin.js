@@ -160,8 +160,9 @@ export default {
           return `[${displayName}](/${this.hexToBech32(profile, 'npub')})`
         }
       }
-      const hashtagReplacer = (match, startWhitespace, hashtag) => {
-        return `${startWhitespace}[${match}](/hashtag/${hashtag})`
+      // the space before it stays outside the link (it was underlined too)
+      const hashtagReplacer = (match, before, hashtag) => {
+        return `${before}[#${hashtag}](/hashtag/${encodeURIComponent(hashtag)})`
       }
       const untaggedProfileReplacer = (match, profile) => {
         const displayName = store.getters.displayName(profile)
@@ -207,7 +208,8 @@ export default {
         nostrEntityReplacer
       )
       let replacedText = nostrReplacedText.replace(/#\[(\d+)\]/g, replacer)
-      let hashtagReplacedText = replacedText.replace(/(?<s>^|[\s])#([\w]{1,63})\b/g, hashtagReplacer)
+      // a hashtag in any script (#ろぐぼ), with at least one letter (#1 isn't one)
+      let hashtagReplacedText = replacedText.replace(/(^|[\s(])#((?=[\p{L}\p{N}_]*\p{L})[\p{L}\p{N}_]{1,63})(?![\p{L}\p{N}_])/gu, hashtagReplacer)
       let untaggedProfileReplacedText = hashtagReplacedText.replace(/@([\w]{64})/g, untaggedProfileReplacer)
       let replacedTextFinal = untaggedProfileReplacedText
 
