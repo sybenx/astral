@@ -199,7 +199,7 @@
              is (its NIP-31 alt text) and a link out, never the raw content -->
         <div v-else-if='unknownKindSummary' class='unknown-kind'>
           <span>{{ unknownKindSummary }}</span>
-          <a :href='postLink()' target='_blank' rel='noopener' @click.stop>open on njump</a>
+          <a :href='otherAppLink.url' target='_blank' rel='noopener' @click.stop>open on {{ otherAppLink.name }}</a>
         </div>
         <!-- unknown kinds: show content text, not full raw JSON -->
         <pre v-else style='font-size: .75rem; white-space: pre-wrap; overflow: auto; opacity: .7;'>{{ event.content }}</pre>
@@ -552,8 +552,17 @@ export default defineComponent({
       if ([0, 1, 2, 6, 7].includes(this.event.kind)) return null
       const content = (this.event.content || '').trim()
       if (!this.isEmbeded && content && !/^[[{]/.test(content)) return null
-      const alt = (this.event.tags || []).find(([t, v]) => t === 'alt' && v)?.[1]
-      return alt || `a kind ${this.event.kind} event`
+      const alt = (this.event.tags || []).find(([t, v]) => t === 'alt' && v)?.[1]?.trim().slice(0, 200)
+      const client = (this.event.tags || []).find(([t, v]) => t === 'client' && v)?.[1]
+      return alt || 'a post from another app' + (client ? ` · ${client}` : '')
+    },
+
+    // where "open" goes: the app's own site when its client tag is a web
+    // address ("SNOcrash.art"), else njump
+    otherAppLink() {
+      const client = (this.event.tags || []).find(([t, v]) => t === 'client' && v)?.[1] || ''
+      if (/^[a-z0-9-]+(\.[a-z0-9-]+)+$/i.test(client)) return { name: client.toLowerCase(), url: `https://${client.toLowerCase()}` }
+      return { name: 'njump', url: this.postLink() }
     },
 
     isReply() {
