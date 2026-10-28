@@ -14,7 +14,8 @@
     "lint": "eslint --ext .js,.vue ./",
     "format": "prettier --write \"**/*.{js,vue,scss,html,md,json}\" --ignore-path .gitignore",
     "test": "echo \"No test specified\" && exit 0",
-    "search-check": "node scripts/search-check.mjs"
+    "search-check": "node scripts/search-check.mjs",
+    "content-fixtures": "node scripts/content-fixtures.mjs"
   },
   "dependencies": {
     "@noble/ciphers": "^2.1.1",
