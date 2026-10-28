@@ -552,9 +552,10 @@ export default defineComponent({
       if ([0, 1, 2, 6, 7].includes(this.event.kind)) return null
       const content = (this.event.content || '').trim()
       if (!this.isEmbeded && content && !/^[[{]/.test(content)) return null
-      const alt = (this.event.tags || []).find(([t, v]) => t === 'alt' && v)?.[1]?.trim().slice(0, 200)
-      const client = (this.event.tags || []).find(([t, v]) => t === 'client' && v)?.[1]
-      return alt || 'a post from another app' + (client ? ` · ${client}` : '')
+      // what it is: its NIP-31 alt text, else its title or name
+      const tag = (k) => (this.event.tags || []).find(([t, v]) => t === k && v?.trim())?.[1].trim().slice(0, 200)
+      const client = tag('client')
+      return tag('alt') || tag('title') || tag('name') || 'something made in another app' + (client ? ` · ${client}` : '')
     },
 
     // where "open" goes: the app's own site when its client tag is a web
