@@ -5,7 +5,7 @@
 // Astral's thread view; the page's WebSocket is a small in-page relay that answers from the fixture and what it points
 // to, so nothing reaches the network. The main post is read back as tokens and compared with the repo's compare.mjs.
 //
-// Results at marble-content-fixtures 0253b1f: 9/25 pass, 26 n/a (no article page). The rest are Astral's own design:
+// Results at marble-content-fixtures 7e95d3f: 10/28 pass, 26 n/a (no article page). The rest are Astral's own design:
 // a short link and a card for every reference, Markdown in kind 1, YouTube as a player, the sanitizer, no article card,
 // lowercase wording; or NIP-30 emoji in posts and NIP-36 content warnings, which Astral doesn't do.
 
@@ -95,6 +95,7 @@ function read() {
       card: card.querySelector('.unknown-kind') ? 'other' : e?.kind === 1 ? 'note' : `kind ${e?.kind}`,
       ref: e ? e.address || e.id : '?',
       text: card.textContent.replace(/\s+/g, ' '),
+      ...(card.querySelector('.unknown-kind a') ? { open: card.querySelector('.unknown-kind a').getAttribute('href') } : {}),
     })
   }
   const copy = body.cloneNode(true)
