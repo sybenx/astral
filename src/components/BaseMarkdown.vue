@@ -288,6 +288,8 @@ export default {
         this.$refs.html.querySelectorAll('a[href]').forEach(a => {
           const href = a.getAttribute('href')
           if (!href || !href.match(/^https?:\/\//)) return
+          // a quoted naddr gets its own card (BasePost), not njump's preview
+          if (href.startsWith('https://njump.me/naddr1')) return
           if (mediaRe.test(href.split('?')[0])) return
           const imetaType = this.imeta?.get(href)?.mimeType || ''
           if (imetaType.startsWith('image/') || imetaType.startsWith('video/')) return

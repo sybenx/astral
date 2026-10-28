@@ -41,6 +41,9 @@ function formatDateUTC(value, verbose = false) {
   return formatDateI18n(dateUtc, 'D MMMM YYYY')
 }
 
+// an addressable event's coordinate, kind:pubkey:d (NIP-01 "a")
+export const isAddress = (v) => /^\d+:[0-9a-f]{64}:/.test(v || '')
+
 export default {
   methods: {
     getLocation() {
@@ -81,6 +84,14 @@ export default {
 
     toEvent(id) {
       this.$router.push('/' + this.getNote(id))
+    },
+
+    // a quote card: a post opens here; an addressable one (kind:pubkey:d),
+    // which astral can't open, on njump
+    toMention(id) {
+      if (!isAddress(id)) return this.toEvent(id)
+      const [kind, pubkey, ...d] = id.split(':')
+      window.open(`https://njump.me/${nip19.naddrEncode({ kind: Number(kind), pubkey, identifier: d.join(':') })}`, '_blank', 'noopener')
     },
 
     shorten,
@@ -182,8 +193,11 @@ export default {
             return `[${shorten(entity)}](/${entity})`
           }
           // an article or other addressable post: astral can't open those, so
-          // a short link to njump instead of the raw string
-          if (type === 'naddr') return `[${shorten(entity)}](https://njump.me/${entity})`
+          // a short link to njump, and a card below (kind:pubkey:d)
+          if (type === 'naddr') {
+            mentions.mentionEvents.push(`${data.kind}:${data.pubkey}:${data.identifier}`)
+            return `[${shorten(entity)}](https://njump.me/${entity})`
+          }
         } catch (_) { /* not a valid entity — leave as written */ }
         return match
       }
@@ -210,8 +224,9 @@ export default {
       tags.filter(([t, v, _, marker]) => (t === 'e') && v && marker === 'mention').forEach(([t, v], index) => {
         if (!mentions.mentionEvents.includes(v)) mentions.mentionEvents.push(v)
       })
-      // NIP-18 quotes: a q tag (event id), also without an e "mention" tag
-      tags.filter(([t, v]) => t === 'q' && /^[0-9a-f]{64}$/.test(v || '')).forEach(([_, v]) => {
+      // NIP-18 quotes: a q tag (an event id, or an address kind:pubkey:d),
+      // also without an e "mention" tag
+      tags.filter(([t, v]) => t === 'q' && (/^[0-9a-f]{64}$/.test(v || '') || isAddress(v))).forEach(([_, v]) => {
         if (!mentions.mentionEvents.includes(v)) mentions.mentionEvents.push(v)
       })
       tags.filter(([t, v]) => (t === 'e') && v).forEach(([t, v], index) => {

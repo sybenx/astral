@@ -113,7 +113,8 @@ export function addEventToCache(
   state,
   event
 ) {
-  let {id} = event
+  // an addressable event fetched for a quote is kept under its address
+  let id = event.address || event.id
   if (id in state.eventsCache) {
     // was here already, remove from LRU (will readd next)
     state.eventsCacheLRU.splice(state.eventsCacheLRU.indexOf(id), 1)

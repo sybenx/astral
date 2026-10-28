@@ -351,6 +351,12 @@ export async function dbEvent(id) {
   return fetchOne({ ids: [id] })
 }
 
+// an addressable event by its coordinate, kind:pubkey:d (newest version)
+export async function dbAddressable(address) {
+  const [kind, pubkey, ...d] = address.split(':')
+  return fetchOne({ kinds: [Number(kind)], authors: [pubkey], '#d': [d.join(':')] })
+}
+
 export async function dbProfile(pubkey) {
   return fetchOne({ kinds: [0], authors: [pubkey] }, undefined, FRESH)
 }

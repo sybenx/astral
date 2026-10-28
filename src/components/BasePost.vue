@@ -195,6 +195,12 @@
         <!-- kind 6: repost — content is the embedded event JSON; the repost renders
              via the mentionEvents block below, so suppress raw JSON here -->
         <template v-else-if="event.kind === 6" />
+        <!-- a kind astral doesn't show, quoted or holding data (JSON): what it
+             is (its NIP-31 alt text) and a link out, never the raw content -->
+        <div v-else-if='unknownKindSummary' class='unknown-kind'>
+          <span>{{ unknownKindSummary }}</span>
+          <a :href='postLink()' target='_blank' rel='noopener' @click.stop>open on njump</a>
+        </div>
         <!-- unknown kinds: show content text, not full raw JSON -->
         <pre v-else style='font-size: .75rem; white-space: pre-wrap; overflow: auto; opacity: .7;'>{{ event.content }}</pre>
         <!-- your own LibreTranslate server (settings), for posts in another language -->
@@ -222,7 +228,7 @@
               :event='$store.state.eventsCache[eventId]'
               :manual-focus='false'
               :is-embeded='true'
-              @click.stop="toEvent(eventId)"
+              @click.stop="toMention(eventId)"
               @resized='calcConnectorValues(10)'
             />
           </div>
@@ -542,6 +548,14 @@ export default defineComponent({
      return this.event.interpolated?.mentionEvents
     },
 
+    unknownKindSummary() {
+      if ([0, 1, 2, 6, 7].includes(this.event.kind)) return null
+      const content = (this.event.content || '').trim()
+      if (!this.isEmbeded && content && !/^[[{]/.test(content)) return null
+      const alt = (this.event.tags || []).find(([t, v]) => t === 'alt' && v)?.[1]
+      return alt || `a kind ${this.event.kind} event`
+    },
+
     isReply() {
       return this.position === 'middle' || this.position === 'last'
     },
@@ -628,7 +642,13 @@ export default defineComponent({
 
     // a plain web link anyone can open, Nostr app or not
     postLink() {
-      const nevent = nip19.neventEncode({ id: this.event.id, author: this.event.pubkey, kind: this.event.kind })
+      const { kind, pubkey } = this.event
+      // addressable (an article, a 3D object…): its address, not one version
+      if (kind >= 30000 && kind < 40000) {
+        const identifier = (this.event.tags || []).find(([t]) => t === 'd')?.[1] || ''
+        return `https://njump.me/${nip19.naddrEncode({ kind, pubkey, identifier })}`
+      }
+      const nevent = nip19.neventEncode({ id: this.event.id, author: pubkey, kind })
       return `https://njump.me/${nevent}`
     },
 
@@ -812,6 +832,17 @@ export default defineComponent({
   line-height: 1;
   margin-left: 2px;
   opacity: 0.85;
+}
+.unknown-kind {
+  display: flex;
+  flex-wrap: wrap;
+  gap: .25rem .75rem;
+  align-items: baseline;
+  opacity: .85;
+}
+.unknown-kind a {
+  color: var(--q-accent);
+  font-size: .85rem;
 }
 .reaction-display {
   padding: 0.25rem 0;

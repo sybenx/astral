@@ -5,6 +5,7 @@ import {
   getProfiles,
   getEvents,
   dbEvent,
+  dbAddressable,
   dbFollows,
   dbRelayListConfirmed,
   streamMainProfilesFollows,
@@ -508,6 +509,17 @@ async function getQueuedEvents(store) {
 let eventsQueue = []
 let gettingEvents = false
 export async function useEvent(store, {id}) {
+  // a quoted article or other addressable event (kind:pubkey:d), cached
+  // under that address
+  if (helpersMixin.isAddress(id)) {
+    if (id in store.state.eventsCache) return
+    const event = await dbAddressable(id)
+    if (event) {
+      store.commit('addEventToCache', {...event, address: id})
+      store.dispatch('useProfile', { pubkey: event.pubkey })
+    }
+    return
+  }
   if (!helpersMixin.default.methods.isKey(id)) return
   if (id in store.state.eventsCache) {
     // we don't fetch again, but we do commit this so the LRU gets updated
