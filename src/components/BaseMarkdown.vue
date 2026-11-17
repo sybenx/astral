@@ -397,8 +397,11 @@ ul ol {
   border: 1px solid var(--q-accent);
   display: block;
 }
+/* a post isn't an editor: wrap long lines (an indented poem is a code block in Markdown)
+   rather than make a phone scroll sideways; the indentation stays */
 .break-word-wrap pre {
   overflow-x: auto;
+  white-space: pre-wrap;
 }
 .long-form {
   max-height: 10rem;

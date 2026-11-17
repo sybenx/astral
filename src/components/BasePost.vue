@@ -170,7 +170,9 @@
         </div>
     </div>
     <div class='flex column no-wrap col full-width'>
-      <q-item-section ref='postContent'>
+      <!-- no-wrap: QItemSection is a wrapping flex column, and a wrapped line is as wide as
+           its widest content, so a long unbroken line (a code block) pushed the post off a phone -->
+      <q-item-section ref='postContent' class='no-wrap'>
         <div class='q-py-sm q-px-lg'>
         <BaseMarkdown
           v-if="event.kind === 1"
