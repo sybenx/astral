@@ -18,9 +18,14 @@ const TIMEOUT_MS = 5000
 const OK_TTL = 24 * 60 * 60
 const MISS_TTL = 60 * 60
 
+// NIP-05 for the domain itself: "_" is the key that runs it (Aaron's). Marble's app index reads it to mark this
+// site's NIP-89 listing (marble/apps-index/own-apps/astral.json) as Astral's own.
+const NOSTR_JSON = JSON.stringify({ names: { _: 'f5073ea24832d8e6246d22ec0b5a75bbf4a12558e3ac67cb07360b3474e5a40e' } })
+
 export default {
   async fetch(request, env, ctx) {
     const url = new URL(request.url)
+    if (url.pathname === '/.well-known/nostr.json') return new Response(NOSTR_JSON, { headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*', 'Cache-Control': 'public, max-age=3600' } })
     if (url.pathname === '/api/og') return linkPreview(request, url, ctx)
     if (url.pathname.startsWith('/api/')) return notFound()
     if (isAppPage(request, url)) return appShell(request, env)
